@@ -1,0 +1,24 @@
+{
+  "name": "promptforge",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "test": "npm run test --workspace=packages/engine",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "overrides": {
+    "next": "$next"
+  },
+  "dependencies": {
+    "next": "^16.2.9"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

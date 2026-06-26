@@ -1,0 +1,69 @@
+{
+  "app": {
+    "title": "PromptForge",
+    "tagline": "حوّل فكرتك إلى برومبت احترافي",
+    "description": "أداة توليد البرومبتات الاحترافية لـ Claude وChatGPT وMidjourney وغيرها"
+  },
+  "nav": {
+    "switch_lang": "English",
+    "switch_lang_href": "/en"
+  },
+  "form": {
+    "idea_label": "فكرتك",
+    "idea_placeholder": "اكتب فكرتك هنا... مثال: أريد برومبت لكتابة مقال عن مستقبل الذكاء الاصطناعي",
+    "target_model_label": "النموذج المستهدف",
+    "output_language_label": "لغة البرومبت",
+    "btn_quick": "توليد سريع",
+    "btn_quick_hint": "مجاني وفوري — بدون AI",
+    "btn_upgrade": "ترقية بالذكاء الاصطناعي ✨",
+    "btn_upgrade_hint": "نتيجة أعمق وأدق باستخدام Claude",
+    "generating": "جاري التوليد...",
+    "upgrading": "جاري الترقية..."
+  },
+  "models": {
+    "claude": "Claude (Anthropic)",
+    "openai": "ChatGPT / GPT-4",
+    "gemini": "Gemini",
+    "midjourney": "Midjourney",
+    "dalle": "DALL·E",
+    "stablediffusion": "Stable Diffusion"
+  },
+  "languages": {
+    "ar": "العربية",
+    "en": "English",
+    "es": "Español",
+    "fr": "Français",
+    "de": "Deutsch"
+  },
+  "result": {
+    "title": "البرومبت المُولَّد",
+    "copy": "نسخ",
+    "copied": "تم النسخ!",
+    "variants_title": "بدائل",
+    "rationale_title": "لماذا هذا البرومبت فعّال؟",
+    "tips_title": "نصائح للتحسين",
+    "ai_badge": "مُحسَّن بالذكاء الاصطناعي",
+    "local_badge": "توليد محلي",
+    "intent_label": "النوع المُكتشف",
+    "generate_new": "توليد جديد"
+  },
+  "errors": {
+    "empty_idea": "الرجاء إدخال فكرتك أولاً",
+    "api_error": "حدث خطأ أثناء الترقية. حاول مرة أخرى.",
+    "api_key_missing": "مفتاح API غير مضبوط — تحقق من ملف .env"
+  },
+  "intents": {
+    "writing": "كتابة",
+    "coding": "برمجة",
+    "image": "صورة",
+    "analysis": "تحليل",
+    "agent": "وكيل AI",
+    "reasoning": "استدلال",
+    "roleplay": "تمثيل أدوار",
+    "education": "تعليم",
+    "translation": "ترجمة"
+  },
+  "footer": {
+    "text": "مبني بـ ❤️ و Claude"
+  }
+}

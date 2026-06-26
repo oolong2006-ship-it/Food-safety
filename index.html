@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>تفتيش | برنامج سلامة الغذاء والتفتيش الإلكتروني للمنشآت الغذائية</title>
+  <meta name="description" content="نظام احترافي لإدارة الجودة وسلامة الغذاء وممارسات التصنيع الجيدة GMP للمطاعم والكافيهات والمصانع الغذائية الخاضعة للتفتيش والرقابة." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="سلامة الغذاء" />
+</head>
+<body>
+  <!-- شاشة تسجيل الدخول -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="login-brand">
+        <img class="login-logo" src="assets/icons/logo.png" alt="تفتيش — برنامج سلامة الغذاء والتفتيش الإلكتروني" />
+        <p>منصة إدارة الجودة والتفتيش الإلكتروني للمنشآت الغذائية</p>
+      </div>
+      <div class="login-roles">
+        <p class="login-hint">اختر الدور للدخول التجريبي:</p>
+        <button class="role-btn" data-role="مدير الجودة">👔 مدير الجودة</button>
+        <button class="role-btn" data-role="مشرف سلامة غذاء">🧪 مشرف سلامة الغذاء</button>
+        <button class="role-btn" data-role="مفتش">🔍 مفتش / مراقب</button>
+      </div>
+      <p class="login-foot">يعمل بدون اتصال — تُحفظ البيانات على جهازك</p>
+    </div>
+  </div>
+
+  <!-- التطبيق -->
+  <div id="app" class="app hidden">
+    <div class="scrim" id="scrim"></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img class="sidebar-logo" id="sidebar-mark" src="assets/icons/logo.png" alt="تفتيش" />
+        <div>
+          <strong>تفتيش</strong>
+          <small>سلامة الغذاء و GMP</small>
+        </div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="sidebar-foot">
+        <div class="user-badge" id="user-badge"></div>
+        <button class="btn-ghost" id="logout-btn"><span class="lo-ic"></span> تسجيل الخروج</button>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn" id="menu-toggle" aria-label="القائمة">☰</button>
+        <div class="topbar-title" id="page-title">لوحة المعلومات</div>
+        <div class="topbar-actions">
+          <span class="today-chip" id="today-chip"></span>
+          <div class="kebab-wrap">
+            <button class="icon-btn" id="kebab-btn" title="المزيد" aria-label="المزيد" aria-haspopup="true"></button>
+            <div class="kebab-menu hidden" id="kebab-menu" role="menu">
+              <button id="export-btn" role="menuitem"><span class="km-ic"></span> تصدير نسخة احتياطية</button>
+              <button id="import-btn" role="menuitem"><span class="km-ic"></span> استيراد نسخة احتياطية</button>
+            </div>
+          </div>
+          <input type="file" id="import-file" accept="application/json" hidden />
+        </div>
+      </header>
+      <main class="content" id="content"></main>
+    </div>
+  </div>
+
+  <!-- نافذة منبثقة عامة -->
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal" id="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3 id="modal-title">عنوان</h3>
+        <button class="icon-btn" id="modal-close" aria-label="إغلاق">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toast-wrap"></div>
+
+  <script src="assets/js/icons.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/standards.js"></script>
+  <script src="assets/js/nutrition.js"></script>
+  <script src="assets/js/ai.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <!-- الوضع السحابي (SaaS) — اختياري: يُفعَّل عند ضبط config.js -->
+  <script src="assets/js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/cloud.js"></script>
+  <script src="assets/js/views.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    // تسجيل Service Worker لتشغيل التطبيق دون اتصال (يتطلب https أو localhost)
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => { /* غير متاح */ });
+      });
+    }
+  </script>
+</body>
+</html>

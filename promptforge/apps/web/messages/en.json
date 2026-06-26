@@ -1,0 +1,69 @@
+{
+  "app": {
+    "title": "PromptForge",
+    "tagline": "Transform your idea into a professional prompt",
+    "description": "Professional prompt generator for Claude, ChatGPT, Midjourney, and more"
+  },
+  "nav": {
+    "switch_lang": "العربية",
+    "switch_lang_href": "/ar"
+  },
+  "form": {
+    "idea_label": "Your Idea",
+    "idea_placeholder": "Describe your idea here... e.g., I need a prompt for writing an article about the future of AI",
+    "target_model_label": "Target Model",
+    "output_language_label": "Prompt Language",
+    "btn_quick": "Quick Generate",
+    "btn_quick_hint": "Free & instant — no AI call",
+    "btn_upgrade": "AI Upgrade ✨",
+    "btn_upgrade_hint": "Deeper, more refined result using Claude",
+    "generating": "Generating...",
+    "upgrading": "Upgrading..."
+  },
+  "models": {
+    "claude": "Claude (Anthropic)",
+    "openai": "ChatGPT / GPT-4",
+    "gemini": "Gemini",
+    "midjourney": "Midjourney",
+    "dalle": "DALL·E",
+    "stablediffusion": "Stable Diffusion"
+  },
+  "languages": {
+    "ar": "العربية",
+    "en": "English",
+    "es": "Español",
+    "fr": "Français",
+    "de": "Deutsch"
+  },
+  "result": {
+    "title": "Generated Prompt",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "variants_title": "Variants",
+    "rationale_title": "Why is this prompt effective?",
+    "tips_title": "Tips for Improvement",
+    "ai_badge": "AI Enhanced",
+    "local_badge": "Local Generation",
+    "intent_label": "Detected Intent",
+    "generate_new": "Generate New"
+  },
+  "errors": {
+    "empty_idea": "Please enter your idea first",
+    "api_error": "An error occurred during upgrade. Please try again.",
+    "api_key_missing": "API key not configured — check your .env file"
+  },
+  "intents": {
+    "writing": "Writing",
+    "coding": "Coding",
+    "image": "Image",
+    "analysis": "Analysis",
+    "agent": "AI Agent",
+    "reasoning": "Reasoning",
+    "roleplay": "Roleplay",
+    "education": "Education",
+    "translation": "Translation"
+  },
+  "footer": {
+    "text": "Built with ❤️ and Claude"
+  }
+}

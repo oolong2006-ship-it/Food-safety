@@ -1,0 +1,34 @@
+name: QA Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium (Playwright)
+        run: npx playwright install --with-deps chromium
+
+      - name: Start static server
+        run: |
+          python3 -m http.server 8123 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8123/index.html >/dev/null && break
+            sleep 1
+          done
+
+      - name: Run QA suite
+        run: node tests/qa.js

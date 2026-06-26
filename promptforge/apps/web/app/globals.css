@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-forge-bg: #0a0a14;
+  --color-forge-surface: #12122a;
+  --color-forge-card: #1a1a35;
+  --color-forge-border: #2a2a50;
+  --color-forge-primary: #7c6af5;
+  --color-forge-primary-hover: #6a58e8;
+  --color-forge-accent: #f59e0b;
+  --color-forge-text: #e8e8f0;
+  --color-forge-muted: #8888aa;
+  --color-forge-success: #10b981;
+}
+
+/* Arabic font stack */
+[dir="rtl"] {
+  font-family: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+}
+
+/* LTR font stack */
+[dir="ltr"] {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-forge-bg);
+  color: var(--color-forge-text);
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-forge-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-forge-border);
+  border-radius: 3px;
+}
+
+/* Smooth transitions for all interactive elements */
+button, input, textarea, select {
+  transition: all 0.15s ease;
+}
+
+/* Prompt code block */
+.prompt-block {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

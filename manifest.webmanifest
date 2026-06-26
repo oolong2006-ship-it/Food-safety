@@ -1,0 +1,19 @@
+{
+  "name": "تفتيش — برنامج سلامة الغذاء والتفتيش الإلكتروني",
+  "short_name": "تفتيش",
+  "description": "نظام احترافي لإدارة الجودة وسلامة الغذاء وممارسات التصنيع الجيدة GMP للمطاعم والكافيهات والمصانع الغذائية الخاضعة للتفتيش.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f766e",
+  "theme_color": "#0f766e",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
