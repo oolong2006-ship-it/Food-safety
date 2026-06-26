@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة تحكم المشغّل — تفتيش</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="assets/icons/icon-192.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #0f766e; --primary-dark: #0d6460; --primary-light: #e6f4f3;
+      --danger: #dc2626; --warn: #d97706; --success: #16a34a;
+      --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0;
+      --gray-400: #94a3b8; --gray-600: #475569; --gray-800: #1e293b;
+      --radius: 12px; --shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+    }
+    body { font-family: 'Cairo', sans-serif; background: var(--gray-50); color: var(--gray-800); min-height: 100vh; }
+
+    /* ── شاشة الدخول ── */
+    #login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, var(--primary) 0%, #134e4a 100%);
+    }
+    .login-box {
+      background: #fff; border-radius: 20px; padding: 40px 36px; width: 100%; max-width: 400px;
+      box-shadow: var(--shadow-lg);
+    }
+    .login-logo { width: 64px; display: block; margin: 0 auto 12px; }
+    .login-box h1 { text-align: center; font-size: 1.3rem; color: var(--primary); margin-bottom: 4px; }
+    .login-box p  { text-align: center; color: var(--gray-400); font-size: .9rem; margin-bottom: 24px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: 6px; color: var(--gray-600); }
+    .field input {
+      width: 100%; padding: 10px 14px; border: 1.5px solid var(--gray-200); border-radius: 10px;
+      font-family: inherit; font-size: .95rem; outline: none; transition: border .2s;
+    }
+    .field input:focus { border-color: var(--primary); }
+    .btn-primary {
+      width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none;
+      border-radius: 12px; font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: background .2s;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-primary:disabled { opacity: .6; cursor: default; }
+    #login-msg { margin-top: 10px; text-align: center; font-size: .88rem; min-height: 20px; color: var(--danger); }
+
+    /* ── التطبيق الرئيسي ── */
+    #app { display: none; }
+    .topbar {
+      background: var(--primary); color: #fff; padding: 0 24px;
+      height: 60px; display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow);
+    }
+    .topbar img { height: 34px; }
+    .topbar h1 { font-size: 1.1rem; font-weight: 700; flex: 1; }
+    .topbar-user { font-size: .82rem; opacity: .85; }
+    .btn-logout {
+      background: rgba(255,255,255,.15); color: #fff; border: none; padding: 6px 14px;
+      border-radius: 8px; font-family: inherit; font-size: .85rem; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-logout:hover { background: rgba(255,255,255,.25); }
+
+    .main { max-width: 1200px; margin: 0 auto; padding: 28px 20px; }
+
+    /* ── بطاقات الإحصاء ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .stat-card {
+      background: #fff; border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow);
+      display: flex; align-items: center; gap: 14px;
+    }
+    .stat-icon { font-size: 2rem; line-height: 1; }
+    .stat-val { font-size: 1.8rem; font-weight: 800; color: var(--primary); line-height: 1; }
+    .stat-lbl { font-size: .8rem; color: var(--gray-400); margin-top: 2px; }
+
+    /* ── جدول العملاء ── */
+    .card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .card-head {
+      padding: 18px 20px; border-bottom: 1px solid var(--gray-100);
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .card-head h2 { font-size: 1rem; font-weight: 700; flex: 1; }
+    .search-box {
+      padding: 8px 14px; border: 1.5px solid var(--gray-200); border-radius: 10px;
+      font-family: inherit; font-size: .9rem; outline: none; min-width: 220px;
+    }
+    .search-box:focus { border-color: var(--primary); }
+    .btn-refresh {
+      padding: 8px 16px; background: var(--primary-light); color: var(--primary);
+      border: none; border-radius: 10px; font-family: inherit; font-size: .85rem;
+      font-weight: 700; cursor: pointer; transition: background .2s;
+    }
+    .btn-refresh:hover { background: #c7e8e6; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    thead tr { background: var(--gray-50); }
+    th { padding: 12px 16px; text-align: right; font-weight: 700; color: var(--gray-600); white-space: nowrap; border-bottom: 1px solid var(--gray-200); }
+    td { padding: 13px 16px; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--gray-50); }
+
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: .78rem; font-weight: 700;
+    }
+    .badge-trial    { background: #fef3c7; color: #92400e; }
+    .badge-basic    { background: #dbeafe; color: #1e40af; }
+    .badge-pro      { background: #d1fae5; color: #065f46; }
+    .badge-enterprise { background: #ede9fe; color: #5b21b6; }
+    .badge-trialing { background: #fef3c7; color: #92400e; }
+    .badge-active   { background: #d1fae5; color: #065f46; }
+    .badge-past_due { background: #fee2e2; color: #991b1b; }
+    .badge-canceled { background: var(--gray-100); color: var(--gray-600); }
+
+    .actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-sm {
+      padding: 5px 10px; border: none; border-radius: 7px; font-family: inherit;
+      font-size: .78rem; font-weight: 700; cursor: pointer; white-space: nowrap; transition: opacity .2s;
+    }
+    .btn-sm:hover { opacity: .8; }
+    .btn-extend  { background: #fef3c7; color: #92400e; }
+    .btn-upgrade { background: #d1fae5; color: #065f46; }
+    .btn-suspend { background: #fee2e2; color: #991b1b; }
+    .btn-activate { background: #d1fae5; color: #065f46; }
+
+    .empty { text-align: center; padding: 48px; color: var(--gray-400); }
+
+    /* ── مودال الإجراء ── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .overlay.hidden { display: none; }
+    .modal {
+      background: #fff; border-radius: 18px; width: 100%; max-width: 440px;
+      box-shadow: var(--shadow-lg); overflow: hidden;
+    }
+    .modal-head {
+      padding: 18px 20px; background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-head h3 { font-size: 1rem; }
+    .modal-close { background: none; border: none; color: #fff; font-size: 1.3rem; cursor: pointer; line-height: 1; }
+    .modal-body { padding: 24px 20px; }
+    .modal-org  { font-weight: 700; color: var(--primary); margin-bottom: 20px; font-size: 1rem; }
+    .modal-section { margin-bottom: 20px; }
+    .modal-section h4 { font-size: .85rem; font-weight: 700; color: var(--gray-600); margin-bottom: 10px; border-bottom: 1px solid var(--gray-100); padding-bottom: 6px; }
+    .days-btns, .plan-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .day-btn, .plan-btn {
+      padding: 8px 16px; border: 2px solid var(--gray-200); border-radius: 10px;
+      background: #fff; font-family: inherit; font-size: .88rem; font-weight: 700;
+      cursor: pointer; transition: all .15s; color: var(--gray-800);
+    }
+    .day-btn:hover, .plan-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .suspend-btn-full {
+      width: 100%; padding: 11px; background: var(--danger); color: #fff; border: none;
+      border-radius: 10px; font-family: inherit; font-size: .95rem; font-weight: 700;
+      cursor: pointer; transition: opacity .2s;
+    }
+    .suspend-btn-full:hover { opacity: .85; }
+    .modal-msg { margin-top: 12px; font-size: .88rem; min-height: 18px; text-align: center; }
+    .msg-ok  { color: var(--success); }
+    .msg-err { color: var(--danger); }
+
+    #loading { text-align: center; padding: 60px; color: var(--gray-400); font-size: 1rem; }
+  </style>
+</head>
+<body>
+
+<!-- شاشة الدخول -->
+<div id="login-screen">
+  <div class="login-box">
+    <img class="login-logo" src="assets/icons/logo.png" alt="تفتيش" />
+    <h1>لوحة تحكم المشغّل</h1>
+    <p>تسجيل دخول المشرف</p>
+    <div class="field"><label>البريد الإلكتروني</label><input id="a-email" type="email" /></div>
+    <div class="field"><label>كلمة المرور</label><input id="a-pass" type="password" /></div>
+    <button class="btn-primary" id="a-login">دخول</button>
+    <p id="login-msg"></p>
+  </div>
+</div>
+
+<!-- التطبيق -->
+<div id="app">
+  <div class="topbar">
+    <img src="assets/icons/logo.png" alt="تفتيش" />
+    <h1>لوحة تحكم المشغّل</h1>
+    <span class="topbar-user" id="admin-email"></span>
+    <button class="btn-logout" id="btn-logout">خروج</button>
+  </div>
+
+  <div class="main">
+    <!-- إحصاءات -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><span class="stat-icon">🏢</span><div><div class="stat-val" id="s-total">—</div><div class="stat-lbl">إجمالي المنشآت</div></div></div>
+      <div class="stat-card"><span class="stat-icon">🕐</span><div><div class="stat-val" id="s-trial">—</div><div class="stat-lbl">قيد التجربة</div></div></div>
+      <div class="stat-card"><span class="stat-icon">✅</span><div><div class="stat-val" id="s-active">—</div><div class="stat-lbl">اشتراك فعّال</div></div></div>
+      <div class="stat-card"><span class="stat-icon">⚠️</span><div><div class="stat-val" id="s-due">—</div><div class="stat-lbl">متأخر / موقوف</div></div></div>
+    </div>
+
+    <!-- جدول العملاء -->
+    <div class="card">
+      <div class="card-head">
+        <h2>قائمة العملاء</h2>
+        <input class="search-box" id="search" placeholder="🔍 بحث بالاسم أو البريد..." />
+        <button class="btn-refresh" id="btn-refresh">↻ تحديث</button>
+      </div>
+      <div id="loading">جارٍ التحميل...</div>
+      <div class="table-wrap" id="table-wrap" style="display:none">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>المنشأة</th>
+              <th>المدينة</th>
+              <th>البريد</th>
+              <th>الخطة</th>
+              <th>الحالة</th>
+              <th>انتهاء التجربة</th>
+              <th>تاريخ التسجيل</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="orgs-body"></tbody>
+        </table>
+        <div class="empty hidden" id="empty-msg">لا توجد نتائج</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- مودال الإجراء -->
+<div class="overlay hidden" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>إدارة العميل</h3>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-org" id="modal-org-name"></div>
+
+      <div class="modal-section">
+        <h4>⏱ تمديد الفترة التجريبية</h4>
+        <div class="days-btns">
+          <button class="day-btn" data-days="7">+ 7 أيام</button>
+          <button class="day-btn" data-days="14">+ 14 يوم</button>
+          <button class="day-btn" data-days="30">+ 30 يوم</button>
+          <button class="day-btn" data-days="90">+ 90 يوم</button>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <h4>🚀 تفعيل / تغيير الخطة (12 شهراً)</h4>
+        <div class="plan-btns">
+          <button class="plan-btn" data-plan="basic">الأساسية</button>
+          <button class="plan-btn" data-plan="pro">الاحترافية</button>
+          <button class="plan-btn" data-plan="enterprise">المؤسسية</button>
+          <button class="plan-btn" data-plan="trial">رجوع لتجريبي</button>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <h4>🚫 إيقاف الاشتراك</h4>
+        <button class="suspend-btn-full" id="btn-suspend">إيقاف هذا الحساب</button>
+      </div>
+
+      <div class="modal-msg" id="modal-msg"></div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/admin.js"></script>
+</body>
+</html>
