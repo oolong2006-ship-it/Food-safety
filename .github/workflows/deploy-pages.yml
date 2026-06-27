@@ -25,6 +25,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Inject Gemini API Key
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            sed -i "s|GEMINI_KEY_PLACEHOLDER|${GEMINI_API_KEY}|g" assets/js/config.js
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
