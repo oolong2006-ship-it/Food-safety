@@ -6,6 +6,7 @@
 
   const ROUTES = [
     { key: 'dashboard', icon: '📊', label: 'لوحة المعلومات', title: 'لوحة المعلومات' },
+    { key: 'branches', icon: '🏪', label: 'الفروع', title: 'إدارة الفروع' },
     { key: 'inspections', icon: '📋', label: 'التفتيش الذاتي و GMP', title: 'التفتيش الذاتي و GMP' },
     { key: 'monitor', icon: '📷', label: 'الرصد بالتصوير الذكي', title: 'الرصد بالتصوير الذكي' },
     { key: 'temperature', icon: '🌡️', label: 'مراقبة الحرارة', title: 'مراقبة درجات الحرارة' },
@@ -86,6 +87,27 @@
 
       // شريحة التاريخ
       U.$('#today-chip').textContent = '📅 ' + new Date().toLocaleDateString('ar', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+      // شريحة الفرع الحالي
+      U.$('#branch-chip').onclick = () => {
+        const db = S.load();
+        const branches = db.branches || [];
+        if (!branches.length) { this.go('branches'); return; }
+        const activeId = S.activeBranch();
+        const opts = `<option value="">كل الفروع</option>` + branches.map(b =>
+          `<option value="${b.id}" ${b.id === activeId ? 'selected' : ''}>${U.esc(b.name)}${b.city ? ' — ' + U.esc(b.city) : ''}</option>`
+        ).join('');
+        U.modal('اختر الفرع الحالي', `
+          <p class="muted" style="margin-bottom:14px;font-size:13px">سيُطبَّق الفرع المختار تلقائيًا على كل السجلات الجديدة (تفتيش، حرارة، مخالفات…)</p>
+          <div class="field" style="margin-bottom:16px"><label>الفرع</label><select id="branch-sel" style="width:100%">${opts}</select></div>
+          <div class="form-actions"><button class="btn-primary" id="branch-confirm">تأكيد</button><button class="btn-secondary" onclick="App.go('branches');U.closeModal()">إدارة الفروع</button></div>`);
+        U.$('#branch-confirm').onclick = () => {
+          S.setActiveBranch(U.$('#branch-sel').value || null);
+          U.closeModal();
+          this.renderBranchChip();
+          U.toast('تم تحديد الفرع الحالي', 'ok');
+        };
+      };
     },
 
     enter() {
@@ -101,6 +123,7 @@
       U.$('#user-badge').innerHTML = `<strong>${U.esc(this.user.name)}</strong><small>${U.esc(sub)}</small>`;
       this.buildNav();
       S.load();
+      this.renderBranchChip();
       this.go('dashboard');
     },
 
@@ -142,6 +165,19 @@
       if (typeof bind === 'function') bind();
       this.buildNav(); // تحديث عدّادات التنبيه
       U.$('#nav').querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.key === this.current));
+      this.renderBranchChip();
+    },
+
+    renderBranchChip() {
+      const db = S.load();
+      const branches = db.branches || [];
+      const chip = U.$('#branch-chip');
+      if (!chip) return;
+      if (!branches.length) { chip.classList.add('hidden'); return; }
+      chip.classList.remove('hidden');
+      const activeId = S.activeBranch();
+      const active = branches.find(b => b.id === activeId);
+      chip.textContent = '🏪 ' + (active ? active.name : 'كل الفروع') + ' ▾';
     },
 
     exportData() {

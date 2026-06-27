@@ -451,9 +451,12 @@
       { id: uid('lot'), lotNo: 'LOT-2406-D', product: 'أرز بسمتي', category: 'مواد جافة', supplier: 'موزع المواد الجافة', receivedDate: shift(-10), qty: 100, unit: 'كجم', expiry: shift(300), storage: 'المستودع الجاف', status: 'قيد الاستخدام', notes: '' },
     ];
 
+    const branches = [
+      { id: uid('br'), name: 'الفرع الرئيسي', city: 'الرياض', type: 'مطعم', manager: '', phone: '', createdAt: todayISO() },
+    ];
     return {
       meta: { facilityName: 'مطعم وكافيه الذواقة', license: 'CR-1010xxxxxx', city: 'الرياض', created: todayISO() },
-      employees: emps, tempLogs, inspections, ncs, suppliers, pest, cleaning, haccp, batches,
+      employees: emps, tempLogs, inspections, ncs, suppliers, pest, cleaning, haccp, batches, branches,
     };
   }
 
@@ -491,6 +494,16 @@
     try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { /* ممتلئ */ }
   }
   function reset() { if (_cloud) return; db = seed(); save(); }
+
+  // ---------- الفروع: حالة نشطة (localStorage منفصلة) ----------
+  const BRANCH_KEY = 'fs_active_branch';
+  function activeBranch() { return localStorage.getItem(BRANCH_KEY) || null; }
+  function setActiveBranch(id) { if (id) localStorage.setItem(BRANCH_KEY, id); else localStorage.removeItem(BRANCH_KEY); }
+  function branchName(id) {
+    if (!id) return '';
+    const b = (col('branches') || []).find(b => b.id === id);
+    return b ? b.name : '';
+  }
 
   // ---------- العمليات ----------
   function col(name) { load(); if (!db[name]) db[name] = []; return db[name]; }
@@ -582,5 +595,6 @@
     daysFromToday, todayISO, shift, uid,
     CHECKLIST_TEMPLATES, buildInspection,
     hydrate, setHooks, isCloud,
+    activeBranch, setActiveBranch, branchName,
   };
 })();

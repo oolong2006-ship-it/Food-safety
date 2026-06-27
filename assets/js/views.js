@@ -98,11 +98,14 @@
   /* ===================== التفتيش الذاتي / GMP ===================== */
   Views.inspections = function () {
     const db = S.load();
-    const rows = [...db.inspections].sort((a, b) => b.date.localeCompare(a.date)).map(i => {
+    const bf = Views._branchFilter;
+    const filtered = bf ? db.inspections.filter(i => i.branchId === bf) : db.inspections;
+    const rows = [...filtered].sort((a, b) => b.date.localeCompare(a.date)).map(i => {
       const score = S.inspectionScore(i);
       const col = score >= 85 ? 'green' : score >= 60 ? 'amber' : 'red';
       return `<tr>
         <td><strong>${esc(i.templateName)}</strong></td>
+        <td>${branchCell(i.branchId)}</td>
         <td>${esc(i.by)}</td>
         <td>${fmtDate(i.date)}</td>
         <td><div style="display:flex;align-items:center;gap:8px"><span>${score}%</span><div style="width:80px">${U.progress(score, col === 'green' ? '#16a34a' : col === 'amber' ? '#d97706' : '#dc2626')}</div></div></td>
@@ -120,24 +123,31 @@
         <div class="spacer"></div>
         <button class="btn-primary" onclick="Views.newInspection()">+ تدقيق جديد</button>
       </div>
-      ${db.inspections.length ? `<div class="table-wrap"><table>
-        <thead><tr><th>القائمة</th><th>المدقّق</th><th>التاريخ</th><th>النتيجة</th><th>التقييم</th><th>إجراءات</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>` : U.empty('لا توجد عمليات تدقيق بعد. ابدأ بإنشاء تدقيق جديد.', '📋')}`;
+      ${branchFilterBar()}
+      ${filtered.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>القائمة</th><th>الفرع</th><th>المدقّق</th><th>التاريخ</th><th>النتيجة</th><th>التقييم</th><th>إجراءات</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>` : U.empty('لا توجد عمليات تدقيق' + (bf ? ' لهذا الفرع' : '') + '. ابدأ بإنشاء تدقيق جديد.', '📋')}`;
   };
 
   Views.newInspection = function () {
     const opts = Object.entries(S.CHECKLIST_TEMPLATES).map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join('');
+    const db = S.load();
+    const hasBranches = (db.branches || []).length > 0;
     U.modal('بدء تدقيق جديد', `
       <div class="form-grid">
         <div class="field"><label>نوع القائمة</label><select id="tpl">${opts}</select></div>
         <div class="field"><label>اسم المدقّق</label><input id="by" value="${esc(App.user.name)}" /></div>
+        ${hasBranches ? `<div class="field field-full"><label>الفرع</label><select id="f-branch">${branchOpts()}</select></div>` : ''}
         <div class="form-actions"><button class="btn-primary" id="start">بدء التدقيق</button></div>
       </div>`);
     U.$('#start').onclick = () => {
       const tpl = U.$('#tpl').value, by = U.$('#by').value.trim() || App.user.name;
+      const branchEl = U.$('#f-branch');
+      const branchId = branchEl ? (branchEl.value || null) : null;
       const t = S.CHECKLIST_TEMPLATES[tpl];
       const insp = {
         id: S.uid('insp'), template: tpl, templateName: t.name, by, date: S.todayISO(), status: 'قيد التنفيذ',
+        branchId,
         sections: t.sections.map(s => ({ title: s.title, items: s.items.map(x => ({ text: x, result: 'yes', note: '' })) }))
       };
       S.add('inspections', insp);
@@ -281,7 +291,9 @@
   /* ===================== مراقبة درجات الحرارة ===================== */
   Views.temperature = function () {
     const db = S.load();
-    const logs = [...db.tempLogs].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+    const bf = Views._branchFilter;
+    const allLogs = [...db.tempLogs].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+    const logs = bf ? allLogs.filter(t => t.branchId === bf) : allLogs;
     const breaches = logs.filter(t => t.status === 'مخالف').length;
     const rows = logs.slice(0, 60).map(t => `<tr>
       <td><strong>${esc(t.unit)}</strong></td>
@@ -290,6 +302,7 @@
       <td class="muted">${esc(t.target)}</td>
       <td>${fmtDate(t.date)} <small class="muted">${esc(t.time)}</small></td>
       <td>${esc(t.by)}</td>
+      <td>${branchCell(t.branchId)}</td>
       <td>${U.statusBadge(t.status)}</td>
       <td class="t-actions"><button class="btn-danger btn-sm" onclick="Views.delTemp('${t.id}')">حذف</button></td>
     </tr>`).join('');
@@ -314,12 +327,15 @@
           <div><strong style="color:#dc2626">75°م</strong><span>الحد الأدنى للطهي الآمن</span></div>
         </div>
       </div>
+      ${branchFilterBar()}
       <div class="table-wrap"><table>
-        <thead><tr><th>الوحدة</th><th>النوع</th><th>القراءة</th><th>الحد المسموح</th><th>التاريخ</th><th>المسؤول</th><th>الحالة</th><th></th></tr></thead>
+        <thead><tr><th>الوحدة</th><th>النوع</th><th>القراءة</th><th>الحد المسموح</th><th>التاريخ</th><th>المسؤول</th><th>الفرع</th><th>الحالة</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div>`;
   };
 
   Views.newTemp = function () {
+    const db = S.load();
+    const hasBranches = (db.branches || []).length > 0;
     U.modal('تسجيل قراءة حرارة', `
       <div class="form-grid two">
         <div class="field"><label>الوحدة / الجهاز</label><input name="unit" placeholder="مثال: ثلاجة اللحوم" /></div>
@@ -328,6 +344,7 @@
         <div class="field"><label>القراءة (°م)</label><input name="value" type="number" step="0.1" /></div>
         <div class="field"><label>الوقت</label><input name="time" type="time" value="${new Date().toTimeString().slice(0, 5)}" /></div>
         <div class="field field-full"><label>المسؤول</label><input name="by" value="${esc(App.user.name)}" /></div>
+        ${hasBranches ? `<div class="field field-full"><label>الفرع</label><select name="branchId">${branchOpts()}</select></div>` : ''}
       </div>
       <div class="form-actions" style="margin-top:14px"><button class="btn-primary" id="save">حفظ القراءة</button></div>`,
       { onOpen: (root) => {
@@ -423,9 +440,12 @@
   /* ===================== عدم المطابقة و CAPA ===================== */
   Views.nc = function () {
     const db = S.load();
-    const list = [...db.ncs].sort((a, b) => b.date.localeCompare(a.date));
+    const bf = Views._branchFilter;
+    const all = [...db.ncs].sort((a, b) => b.date.localeCompare(a.date));
+    const list = bf ? all.filter(n => n.branchId === bf) : all;
     const rows = list.map(n => `<tr>
       <td><strong>${n.photo ? '📷 ' : ''}${esc(n.title)}</strong><br><small class="muted">${esc(n.source)}</small></td>
+      <td>${branchCell(n.branchId)}</td>
       <td>${U.statusBadge(n.severity)}</td>
       <td>${esc(n.owner)}</td>
       <td>${fmtDate(n.dueDate)}</td>
@@ -449,14 +469,16 @@
         <div class="card kpi ${crit ? 'bad' : 'good'}"><div class="kpi-ic">🚨</div><div class="kpi-label">حرجة مفتوحة</div><div class="kpi-value">${crit}</div></div>
         <div class="card kpi good"><div class="kpi-ic">✅</div><div class="kpi-label">مغلقة</div><div class="kpi-value">${list.filter(n => n.status === 'مغلقة').length}</div></div>
       </div>
+      ${branchFilterBar()}
       <div class="table-wrap"><table>
-        <thead><tr><th>الوصف / المصدر</th><th>الخطورة</th><th>المسؤول</th><th>الاستحقاق</th><th>الحالة</th><th></th></tr></thead>
+        <thead><tr><th>الوصف / المصدر</th><th>الفرع</th><th>الخطورة</th><th>المسؤول</th><th>الاستحقاق</th><th>الحالة</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div>`;
   };
 
   Views.editNC = function (id) {
-    const n = id ? S.get('ncs', id) : { title: '', severity: 'متوسطة', source: 'تدقيق داخلي', status: 'مفتوحة', date: S.todayISO(), owner: App.user.name, dueDate: S.shift(7), action: '', preventiveAction: '', rootCause: '' };
+    const n = id ? S.get('ncs', id) : { title: '', severity: 'متوسطة', source: 'تدقيق داخلي', status: 'مفتوحة', date: S.todayISO(), owner: App.user.name, dueDate: S.shift(7), action: '', preventiveAction: '', rootCause: '', branchId: S.activeBranch() || '' };
     const sel = (val, opts) => opts.map(o => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('');
+    const db = S.load(); const hasBranches = (db.branches || []).length > 0;
     U.modal(id ? 'معالجة حالة عدم المطابقة' : 'حالة عدم مطابقة جديدة', `
       ${n.photo ? `<div style="text-align:center;margin-bottom:14px"><img src="${n.photo}" onclick="Views.zoomImg('${n.photo}')" style="max-height:200px;max-width:100%;border-radius:10px;cursor:pointer;border:1px solid var(--line)" alt="الدليل المصوّر"/><div class="muted" style="font-size:12px;margin-top:4px">📷 دليل مصوّر مرفق — اضغط للتكبير</div></div>` : ''}
       <div class="form-grid two">
@@ -467,6 +489,7 @@
         <div class="field"><label>تاريخ الاستحقاق</label><input name="dueDate" type="date" value="${esc(n.dueDate)}" /></div>
         <div class="field"><label>الحالة</label><select name="status">${sel(n.status, ['مفتوحة', 'قيد المعالجة', 'مغلقة'])}</select></div>
         <div class="field"><label>التاريخ</label><input name="date" type="date" value="${esc(n.date)}" /></div>
+        ${hasBranches ? `<div class="field"><label>الفرع</label><select name="branchId">${branchOpts(n.branchId)}</select></div>` : ''}
         <div class="field field-full"><label>السبب الجذري</label><textarea name="rootCause">${esc(n.rootCause)}</textarea></div>
         <div class="field field-full"><label>الإجراء التصحيحي (الفوري)</label><textarea name="action">${esc(n.action)}</textarea></div>
         <div class="field field-full"><label>الإجراء الوقائي (لمنع التكرار)</label><textarea name="preventiveAction">${esc(n.preventiveAction || '')}</textarea></div>
@@ -900,14 +923,16 @@
   };
 
   Views.editCleaning = function (id) {
-    const c = id ? S.get('cleaning', id) : { area: '', task: '', frequency: 'يومي', responsible: '', lastDone: S.todayISO(), nextDue: S.todayISO() };
+    const c = id ? S.get('cleaning', id) : { area: '', task: '', frequency: 'يومي', responsible: '', lastDone: S.todayISO(), nextDue: S.todayISO(), branchId: S.activeBranch() || '' };
     const sel = (val, opts) => opts.map(o => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('');
+    const db = S.load(); const hasBranches = (db.branches || []).length > 0;
     U.modal('مهمة تنظيف', `
       <div class="form-grid two">
         <div class="field"><label>المنطقة</label><input name="area" value="${esc(c.area)}" /></div>
         <div class="field"><label>التكرار</label><select name="frequency">${sel(c.frequency, ['يومي', 'أسبوعي', 'شهري'])}</select></div>
         <div class="field field-full"><label>المهمة</label><input name="task" value="${esc(c.task)}" /></div>
         <div class="field field-full"><label>المسؤول</label><input name="responsible" value="${esc(c.responsible)}" /></div>
+        ${hasBranches ? `<div class="field field-full"><label>الفرع</label><select name="branchId">${branchOpts(c.branchId)}</select></div>` : ''}
       </div>
       <div class="form-actions" style="margin-top:14px"><button class="btn-primary" id="save">حفظ</button></div>`,
       { onOpen: (root) => {
@@ -926,12 +951,14 @@
   };
 
   Views.newPest = function () {
+    const db = S.load(); const hasBranches = (db.branches || []).length > 0;
     U.modal('زيارة مكافحة آفات', `
       <div class="form-grid two">
         <div class="field"><label>الشركة</label><input name="company" /></div>
         <div class="field"><label>النوع</label><select name="type"><option>زيارة دورية</option><option>زيارة طارئة</option><option>معالجة</option></select></div>
         <div class="field"><label>تاريخ الزيارة</label><input name="date" type="date" value="${S.todayISO()}" /></div>
         <div class="field"><label>الزيارة القادمة</label><input name="nextVisit" type="date" value="${S.shift(30)}" /></div>
+        ${hasBranches ? `<div class="field"><label>الفرع</label><select name="branchId">${branchOpts()}</select></div>` : ''}
         <div class="field field-full"><label>الملاحظات / النتائج</label><textarea name="findings"></textarea></div>
       </div>
       <div class="form-actions" style="margin-top:14px"><button class="btn-primary" id="save">حفظ</button></div>`,
@@ -1757,6 +1784,122 @@
       const r = await window.AI.testConnection();
       st.textContent = r.ok ? '✓ ' + r.msg : '⚠ ' + r.msg;
     };
+  };
+
+  /* ===================== مساعد الفروع ===================== */
+  Views._branchFilter = null; // فلتر الفرع في قوائم العرض
+
+  function branchOpts(selected) {
+    const db = S.load();
+    const branches = db.branches || [];
+    const activeId = selected || S.activeBranch() || '';
+    if (!branches.length) return '<option value="">— أضف فروعاً أولاً من قسم الفروع —</option>';
+    return branches.map(b =>
+      `<option value="${b.id}" ${b.id === activeId ? 'selected' : ''}>${esc(b.name)}${b.city ? ' — ' + esc(b.city) : ''}</option>`
+    ).join('');
+  }
+
+  function branchFilterBar() {
+    const db = S.load();
+    const branches = db.branches || [];
+    if (!branches.length) return '';
+    const all = Views._branchFilter === null;
+    return `<div class="filter-chips">
+      <button class="filter-chip ${all ? 'active' : ''}" onclick="Views._branchFilter=null;App.render()">كل الفروع</button>
+      ${branches.map(b => `<button class="filter-chip ${Views._branchFilter === b.id ? 'active' : ''}" onclick="Views._branchFilter='${b.id}';App.render()">${esc(b.name)}</button>`).join('')}
+    </div>`;
+  }
+
+  function branchCell(id) {
+    if (!id) return '<span class="muted" style="font-size:12px">—</span>';
+    return U.badge(S.branchName(id) || '—', 'blue');
+  }
+
+  /* ===================== إدارة الفروع ===================== */
+  Views.branches = function () {
+    const db = S.load();
+    const branches = db.branches || [];
+    const activeId = S.activeBranch();
+
+    const TYPE_ICONS = { مطعم: '🍽️', كافيه: '☕', مخبز: '🥐', 'مصنع غذاء': '🏭', مستودع: '📦', أخرى: '🏢' };
+
+    const cards = branches.map(b => {
+      const isActive = b.id === activeId;
+      return `<div class="card" style="border:2px solid ${isActive ? 'var(--primary)' : 'var(--line)'}">
+        <div class="row-line" style="margin-bottom:10px">
+          <div>
+            <div style="font-size:1.1rem;font-weight:800">${TYPE_ICONS[b.type] || '🏢'} ${esc(b.name)}</div>
+            <div class="muted" style="font-size:12px;margin-top:2px">${esc(b.city || '—')} · ${esc(b.type || 'مطعم')}</div>
+          </div>
+          <span class="spacer"></span>
+          ${isActive ? `<span style="background:#d1fae5;color:#065f46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">● الفرع الحالي</span>` : ''}
+        </div>
+        ${b.manager ? `<div class="muted" style="font-size:13px;margin-bottom:10px">المدير: ${esc(b.manager)}${b.phone ? ' · ☎ ' + esc(b.phone) : ''}</div>` : ''}
+        <div class="t-actions">
+          ${!isActive ? `<button class="btn-primary btn-sm" onclick="Views.setActiveBranch('${b.id}')">✔ تحديد كفرع حالي</button>` : ''}
+          <button class="btn-secondary btn-sm" onclick="Views.saveBranch('${b.id}')">تعديل</button>
+          <button class="btn-danger btn-sm" onclick="Views.delBranch('${b.id}')">حذف</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+      <div class="page-head">
+        <div>
+          <h2>إدارة الفروع</h2>
+          <p>سجّل فروع منشأتك — يختار المفتش الفرع الحالي من شريحة الفرع في شريط العنوان أو من هذه الصفحة</p>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn-primary" onclick="Views.saveBranch()">+ إضافة فرع</button>
+      </div>
+      ${branches.length
+        ? `<div class="grid cols-2">${cards}</div>`
+        : `<div class="card" style="text-align:center;padding:40px">
+            <div style="font-size:3rem;margin-bottom:12px">🏪</div>
+            <p style="font-weight:700;margin-bottom:6px">لا توجد فروع مسجلة بعد</p>
+            <p class="muted" style="margin-bottom:20px">أضف الفرع الأول لبدء ربط السجلات بالفروع</p>
+            <button class="btn-primary" onclick="Views.saveBranch()">+ إضافة أول فرع</button>
+          </div>`}`;
+  };
+
+  Views.saveBranch = function (id) {
+    const b = id ? S.get('branches', id) : { name: '', city: '', type: 'مطعم', manager: '', phone: '' };
+    if (!b) return;
+    const sel = (val, opts) => opts.map(o => `<option ${o === val ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    U.modal(id ? 'تعديل الفرع' : 'إضافة فرع جديد', `
+      <div class="form-grid two">
+        <div class="field field-full"><label>اسم الفرع *</label><input name="name" value="${esc(b.name)}" placeholder="مثال: فرع الرياض — الملز" /></div>
+        <div class="field"><label>المدينة</label><input name="city" value="${esc(b.city || '')}" /></div>
+        <div class="field"><label>نوع المنشأة</label><select name="type">${sel(b.type || 'مطعم', ['مطعم', 'كافيه', 'مخبز', 'مصنع غذاء', 'مستودع', 'أخرى'])}</select></div>
+        <div class="field"><label>مدير الفرع</label><input name="manager" value="${esc(b.manager || '')}" /></div>
+        <div class="field"><label>هاتف الفرع</label><input name="phone" value="${esc(b.phone || '')}" type="tel" /></div>
+      </div>
+      <div class="form-actions" style="margin-top:14px"><button class="btn-primary" id="save">حفظ</button></div>`,
+      { onOpen: (root) => {
+        U.$('#save').onclick = () => {
+          const f = U.readForm(root);
+          if (!f.name) return U.toast('أدخل اسم الفرع', 'err');
+          if (id) S.update('branches', id, f);
+          else { f.createdAt = S.todayISO(); S.add('branches', f); }
+          U.closeModal(); U.toast('تم الحفظ', 'ok');
+          App.render(); App.renderBranchChip && App.renderBranchChip();
+        };
+      } });
+  };
+
+  Views.delBranch = function (id) {
+    U.confirmDialog('حذف هذا الفرع؟ تبقى كل السجلات المرتبطة به سليمة.', () => {
+      S.remove('branches', id);
+      if (S.activeBranch() === id) S.setActiveBranch(null);
+      U.toast('تم الحذف', 'ok');
+      App.render(); App.renderBranchChip && App.renderBranchChip();
+    }, 'حذف');
+  };
+
+  Views.setActiveBranch = function (id) {
+    S.setActiveBranch(id);
+    U.toast('تم تحديد الفرع الحالي', 'ok');
+    App.render(); App.renderBranchChip && App.renderBranchChip();
   };
 
   window.Views = Views;

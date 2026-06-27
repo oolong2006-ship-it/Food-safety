@@ -126,6 +126,11 @@ a { color: var(--teal); }
 .topbar-title { font-size: 18px; font-weight: 700; }
 .topbar-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; }
 .today-chip { font-size: 13px; color: var(--muted); background: var(--bg); padding: 6px 12px; border-radius: 20px; }
+.branch-chip { font-size: 13px; color: var(--primary); background: #e6f4f3; border: 1.5px solid var(--primary); padding: 5px 12px; border-radius: 20px; cursor: pointer; font-family: inherit; font-weight: 700; transition: background .15s; white-space: nowrap; }
+.branch-chip:hover { background: #c7e8e6; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.filter-chip { font-size: 13px; padding: 5px 14px; border-radius: 20px; border: 1.5px solid var(--line); background: #fff; cursor: pointer; font-family: inherit; transition: all .15s; }
+.filter-chip.active, .filter-chip:hover { border-color: var(--primary); color: var(--primary); background: #e6f4f3; }
 .icon-btn { background: none; border: none; font-size: 20px; padding: 4px 8px; border-radius: 8px; color: var(--ink); }
 .icon-btn:hover { background: var(--bg); }
 #menu-toggle { display: none; }
