@@ -982,7 +982,11 @@
             <span class="muted">لم يتم اختيار صورة بعد</span>
           </div>
           <input type="file" id="mon-file" accept="image/*" capture="environment" hidden />
-          <button type="button" class="btn-secondary file-pick" id="mon-pick" style="margin-bottom:6px">📷 التقاط صورة أو اختيار ملف</button>
+          <input type="file" id="mon-file-gallery" accept="image/*" hidden />
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <button type="button" class="btn-secondary file-pick" id="mon-pick" style="flex:1">📷 التقاط صورة</button>
+            <button type="button" class="btn-secondary file-pick" id="mon-pick-gallery" style="flex:1">🖼 رفع من الملفات</button>
+          </div>
           <div id="mon-fname" class="muted" style="font-size:12px;margin-bottom:12px;text-align:center"></div>
           <div class="field" style="margin-bottom:12px">
             <label>ملاحظة المفتش (اختياري)</label>
@@ -1018,6 +1022,23 @@
     const refreshBtn = () => { analyzeBtn.disabled = !(Views._monImg || (noteEl && noteEl.value.trim())); };
     if (noteEl) noteEl.addEventListener('input', refreshBtn);
     if (pick) pick.onclick = () => fileEl.click();
+    const fileGallery = U.$('#mon-file-gallery'), pickGallery = U.$('#mon-pick-gallery');
+    if (pickGallery) pickGallery.onclick = () => fileGallery.click();
+    const handleMonFile = (file) => {
+      if (!file) return;
+      const fname = U.$('#mon-fname'); if (fname) fname.textContent = '📎 ' + file.name;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const m = /^data:(.*?);base64,(.*)$/.exec(reader.result);
+        if (!m) return U.toast('تعذّر قراءة الصورة', 'err');
+        Views._monImg = { mediaType: m[1], data: m[2] };
+        U.$('#mon-preview').innerHTML = `<img src="${reader.result}" style="max-width:100%;max-height:240px;border-radius:10px" alt="معاينة"/>`;
+        Views._monThumb = await Views._downscale(reader.result, 480, 0.55);
+        refreshBtn();
+      };
+      reader.readAsDataURL(file);
+    };
+    if (fileGallery) fileGallery.onchange = () => handleMonFile(fileGallery.files[0]);
     fileEl.onchange = () => {
       const file = fileEl.files[0]; if (!file) return;
       const fname = U.$('#mon-fname'); if (fname) fname.textContent = '📎 ' + file.name;
@@ -1027,7 +1048,7 @@
         if (!m) return U.toast('تعذّر قراءة الصورة', 'err');
         Views._monImg = { mediaType: m[1], data: m[2] };
         U.$('#mon-preview').innerHTML = `<img src="${reader.result}" style="max-width:100%;max-height:240px;border-radius:10px" alt="معاينة"/>`;
-        Views._monThumb = await Views._downscale(reader.result, 480, 0.55); // دليل مصوّر مضغوط
+        Views._monThumb = await Views._downscale(reader.result, 480, 0.55);
         refreshBtn();
       };
       reader.readAsDataURL(file);
