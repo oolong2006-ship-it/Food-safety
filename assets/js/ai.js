@@ -269,5 +269,30 @@ ${WORKER_CRITERIA.map((c, i) => (i + 1) + '. ' + c).join('\n')}
     return { needsKey: true, source: 'local', hint: 'تقدير وجبة من وصف نصّي حر يتطلب تفعيل خدمة الذكاء الاصطناعي من الإعدادات، أو ذكر مكوّنات معروفة في الوصف.' };
   }
 
-  window.AI = { cfg, setCfg, hasKey, enabled, MODEL, generateCapa, evaluateItem, analyzePhoto, inspectWorker, estimateNutrition, WORKER_CRITERIA };
+  async function testConnection() {
+    const key = resolvedKey();
+    if (!key) return { ok: false, msg: 'لا يوجد مفتاح — أضفه من الإعدادات' };
+    try {
+      const res = await fetch(GEMINI_URL + '?key=' + key, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'قل مرحبا' }] }],
+          generationConfig: { maxOutputTokens: 10 },
+        }),
+      });
+      if (res.status === 429) return { ok: false, msg: 'تجاوزت الحد المؤقت — انتظر دقيقة' };
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        return { ok: false, msg: 'خطأ ' + res.status + ': ' + (e.error?.message || '') };
+      }
+      const d = await res.json();
+      const text = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      return { ok: true, msg: 'الاتصال ناجح ✓ رد النموذج: ' + text };
+    } catch (err) {
+      return { ok: false, msg: String(err) };
+    }
+  }
+
+  window.AI = { cfg, setCfg, hasKey, enabled, MODEL, generateCapa, evaluateItem, analyzePhoto, inspectWorker, estimateNutrition, WORKER_CRITERIA, testConnection };
 })();

@@ -1718,13 +1718,9 @@
       const keyEl = U.$('#ai-key'), enEl = U.$('#ai-enabled');
       if (keyEl) window.AI.setCfg({ apiKey: keyEl.value.trim(), enabled: enEl ? enEl.checked : true });
       const st = U.$('#ai-test-state');
-      const cloud = window.Cloud && window.Cloud.active && window.Cloud.active();
-      if (!cloud && !window.AI.hasKey()) { st.textContent = '⚠ أدخل المفتاح أولًا'; return; }
       st.textContent = '⏳ جارٍ الاختبار...';
-      try {
-        const r = await window.AI.generateCapa('اختبار اتصال: درجة حرارة ثلاجة مرتفعة');
-        st.textContent = r.source === 'ai' ? '✓ الاتصال ناجح والخدمة تعمل' : '⚠ تعذّر الاتصال — يعمل النظام بالوضع المحلي';
-      } catch (e) { st.textContent = '⚠ ' + e.message; }
+      const r = await window.AI.testConnection();
+      st.textContent = r.ok ? '✓ ' + r.msg : '⚠ ' + r.msg;
     };
   };
 
