@@ -88,12 +88,37 @@
 
   document.getElementById('btn-refresh').onclick = loadData;
 
+  /* ── تصدير CSV ── */
+  const exportBtn = document.getElementById('btn-export');
+  if (exportBtn) {
+    exportBtn.onclick = () => {
+      if (!allOrgs.length) return;
+      const headers = ['#', 'المنشأة', 'المدينة', 'البريد', 'الخطة', 'الحالة', 'انتهاء التجربة', 'تاريخ التسجيل'];
+      const rows = allOrgs.map((o, i) => [
+        i + 1, o.name, o.city || '', o.ownerEmail,
+        PLAN_LABELS[o.plan] || o.plan,
+        STATUS_LABELS[o.subscription_status] || o.subscription_status,
+        o.trial_ends_at ? new Date(o.trial_ends_at).toLocaleDateString('ar-SA') : '',
+        o.created_at ? new Date(o.created_at).toLocaleDateString('ar-SA') : '',
+      ]);
+      const csv = [headers, ...rows].map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = 'تفتيش-العملاء-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click(); URL.revokeObjectURL(url);
+    };
+  }
+
   /* ── إحصاءات ── */
   function updateStats() {
-    document.getElementById('s-total').textContent  = allOrgs.length;
-    document.getElementById('s-trial').textContent  = allOrgs.filter(o => o.subscription_status === 'trialing').length;
-    document.getElementById('s-active').textContent = allOrgs.filter(o => o.subscription_status === 'active').length;
-    document.getElementById('s-due').textContent    = allOrgs.filter(o => ['past_due','canceled'].includes(o.subscription_status)).length;
+    const now = Date.now();
+    document.getElementById('s-total').textContent   = allOrgs.length;
+    document.getElementById('s-trial').textContent   = allOrgs.filter(o => o.subscription_status === 'trialing' && (!o.trial_ends_at || new Date(o.trial_ends_at).getTime() > now)).length;
+    document.getElementById('s-active').textContent  = allOrgs.filter(o => o.subscription_status === 'active').length;
+    document.getElementById('s-due').textContent     = allOrgs.filter(o => ['past_due','canceled'].includes(o.subscription_status)).length;
+    const expEl = document.getElementById('s-expired');
+    if (expEl) expEl.textContent = allOrgs.filter(o => o.subscription_status === 'trialing' && o.trial_ends_at && new Date(o.trial_ends_at).getTime() <= now).length;
   }
 
   /* ── جدول العملاء ── */
@@ -138,7 +163,12 @@
     currentOrgId = orgId;
     const org = allOrgs.find(o => o.id === orgId);
     if (!org) return;
-    document.getElementById('modal-org-name').textContent = `${org.name} — ${org.ownerEmail}`;
+    const planLabel   = PLAN_LABELS[org.plan]   || org.plan;
+    const statusLabel = STATUS_LABELS[org.subscription_status] || org.subscription_status;
+    const trialInfo   = org.trial_ends_at ? ` · تنتهي التجربة: ${formatDate(org.trial_ends_at)}` : '';
+    document.getElementById('modal-org-name').innerHTML =
+      `<strong>${esc(org.name)}</strong><br><small style="font-weight:400;opacity:.85">${esc(org.ownerEmail)}</small><br>` +
+      `<small style="font-weight:400;opacity:.75">الخطة: ${esc(planLabel)} · الحالة: ${esc(statusLabel)}${esc(trialInfo)}</small>`;
     document.getElementById('modal-msg').textContent = '';
     document.getElementById('modal-msg').className = 'modal-msg';
     document.getElementById('modal-overlay').classList.remove('hidden');
@@ -147,6 +177,7 @@
   function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); currentOrgId = null; }
   document.getElementById('modal-close').onclick  = closeModal;
   document.getElementById('modal-overlay').onclick = e => { if (e.target === document.getElementById('modal-overlay')) closeModal(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
   function setMsg(text, ok) {
     const el = document.getElementById('modal-msg');

@@ -94,6 +94,12 @@
       font-weight: 700; cursor: pointer; transition: background .2s;
     }
     .btn-refresh:hover { background: #c7e8e6; }
+    .btn-export {
+      padding: 8px 16px; background: #f0fdf4; color: var(--success);
+      border: 1.5px solid #bbf7d0; border-radius: 10px; font-family: inherit; font-size: .85rem;
+      font-weight: 700; cursor: pointer; transition: background .2s;
+    }
+    .btn-export:hover { background: #dcfce7; }
 
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: .88rem; }
@@ -200,6 +206,7 @@
       <div class="stat-card"><span class="stat-icon">🕐</span><div><div class="stat-val" id="s-trial">—</div><div class="stat-lbl">قيد التجربة</div></div></div>
       <div class="stat-card"><span class="stat-icon">✅</span><div><div class="stat-val" id="s-active">—</div><div class="stat-lbl">اشتراك فعّال</div></div></div>
       <div class="stat-card"><span class="stat-icon">⚠️</span><div><div class="stat-val" id="s-due">—</div><div class="stat-lbl">متأخر / موقوف</div></div></div>
+      <div class="stat-card"><span class="stat-icon">⏰</span><div><div class="stat-val" id="s-expired">—</div><div class="stat-lbl">انتهت تجربتهم</div></div></div>
     </div>
 
     <!-- جدول العملاء -->
@@ -208,6 +215,7 @@
         <h2>قائمة العملاء</h2>
         <input class="search-box" id="search" placeholder="🔍 بحث بالاسم أو البريد..." />
         <button class="btn-refresh" id="btn-refresh">↻ تحديث</button>
+        <button class="btn-export" id="btn-export">⬇ تصدير CSV</button>
       </div>
       <div id="loading">جارٍ التحميل...</div>
       <div class="table-wrap" id="table-wrap" style="display:none">
