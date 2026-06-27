@@ -67,14 +67,9 @@ ${window.Standards.knowledgeContext()}
     }
     const key = resolvedKey();
     if (!key) throw new Error('لا يوجد مفتاح Gemini API — أضفه من الإعدادات');
-    // مفاتيح AQ./ya29. هي OAuth access tokens تُرسل كـ Bearer
-    const isBearer = key.startsWith('AQ.') || key.startsWith('ya29.');
-    const fetchUrl = isBearer ? GEMINI_URL : GEMINI_URL + '?key=' + key;
-    const fetchHeaders = { 'content-type': 'application/json' };
-    if (isBearer) fetchHeaders['Authorization'] = 'Bearer ' + key;
-    const res = await fetch(fetchUrl, {
+    const res = await fetch(GEMINI_URL + '?key=' + key, {
       method: 'POST',
-      headers: fetchHeaders,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt() }] },
         contents: [{ parts: buildGeminiParts(content) }],
@@ -82,6 +77,8 @@ ${window.Standards.knowledgeContext()}
       }),
     });
     if (!res.ok) {
+      if (res.status === 429) throw new Error('تجاوزت الحد المؤقت لـ Gemini — انتظر دقيقة وأعد المحاولة');
+      if (res.status === 401 || res.status === 403) throw new Error('مفتاح Gemini غير صالح أو منتهي الصلاحية');
       let msg = 'فشل الاتصال بخدمة الذكاء الاصطناعي (' + res.status + ')';
       try { const e = await res.json(); if (e.error && e.error.message) msg += ': ' + e.error.message; } catch (_) {}
       throw new Error(msg);
