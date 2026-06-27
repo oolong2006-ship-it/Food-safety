@@ -1,5 +1,5 @@
 /* ============================================================
-   ai.js — طبقة الذكاء الاصطناعي (Claude API + محرك احتياطي محلي)
+   ai.js — طبقة الذكاء الاصطناعي (Gemini Flash + محرك احتياطي محلي)
    - تقييم بنود التفتيش وتحديثها
    - تحليل الصور ورصد المخالفات تلقائيًا
    - توليد الإجراء التصحيحي والوقائي
@@ -7,8 +7,8 @@
    ============================================================ */
 (function () {
   const CFG_KEY = 'fs_ai_cfg_v1';
-  const MODEL = 'claude-opus-4-8'; // أحدث نموذج Claude (رؤية + استدلال)
-  const API_URL = 'https://api.anthropic.com/v1/messages';
+  const MODEL = 'gemini-2.0-flash';
+  const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent';
 
   function cfg() {
     try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch (e) { return {}; }
@@ -19,18 +19,14 @@
     return c;
   }
   function hasKey() { return !!(cfg().apiKey && cfg().apiKey.trim()); }
-  // الوضع السحابي مع خطة تتيح الذكاء الاصطناعي → تُستخدم بوابة الخادم (claude-proxy)
   function cloudAI() {
     return !!(window.Cloud && window.Cloud.active && window.Cloud.active() && window.Cloud.feature('ai') && window.Cloud.aiProxy);
   }
   function enabled() {
-    // في الوضع السحابي: تُستخدم البوابة الآمنة إن أتاحت الخطة الميزة (دون مفتاح محلي)
     if (window.Cloud && window.Cloud.active && window.Cloud.active()) return cloudAI();
-    // الوضع المحلي: يتطلب مفتاحًا في الإعدادات
     return hasKey() && cfg().enabled !== false;
   }
 
-  // النظام (System prompt) — يحقن المعرفة بالمواصفات
   function systemPrompt() {
     return `أنت خبير سلامة غذاء و GMP و HACCP معتمد، تعمل ضمن نظام رقابة للمطاعم والكافيهات والمصانع الغذائية في السعودية والخليج.
 مهمتك تقييم الامتثال ورصد المخالفات وفق المواصفات السعودية (هيئة الغذاء والدواء SFDA)، والخليجية (هيئة التقييس GSO مثل GSO 1694 و GSO 21 و GSO 2233)، والعالمية (Codex Alimentarius، ISO 22000، HACCP).
@@ -41,9 +37,19 @@ ${window.Standards.knowledgeContext()}
 عندما يُطلب منك صيغة JSON، أعِد JSON صالحًا فقط دون أي نص إضافي أو علامات تنسيق.`;
   }
 
-  // استدعاء Claude — عبر بوابة الخادم في الوضع السحابي، أو مباشرة بالمفتاح المحلي
-  async function callClaude(content, { maxTokens = 1500 } = {}) {
-    // الوضع السحابي: المرور عبر claude-proxy (المفتاح محفوظ في الخادم)
+  // تحويل تنسيق Claude إلى تنسيق Gemini
+  function buildGeminiParts(content) {
+    if (typeof content === 'string') return [{ text: content }];
+    return content.map(item => {
+      if (item.type === 'image') {
+        return { inlineData: { mimeType: item.source.media_type, data: item.source.data } };
+      }
+      return { text: item.text || '' };
+    });
+  }
+
+  async function callGemini(content, { maxTokens = 1500 } = {}) {
+    // الوضع السحابي: المرور عبر بوابة الخادم
     if (cloudAI()) {
       return await window.Cloud.aiProxy({
         system: systemPrompt(),
@@ -52,20 +58,14 @@ ${window.Standards.knowledgeContext()}
         model: MODEL,
       });
     }
-    const c = cfg();
-    const res = await fetch(API_URL, {
+    const key = cfg().apiKey;
+    const res = await fetch(GEMINI_URL + '?key=' + key, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': c.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: c.model || MODEL,
-        max_tokens: maxTokens,
-        system: systemPrompt(),
-        messages: [{ role: 'user', content }],
+        systemInstruction: { parts: [{ text: systemPrompt() }] },
+        contents: [{ parts: buildGeminiParts(content) }],
+        generationConfig: { maxOutputTokens: maxTokens },
       }),
     });
     if (!res.ok) {
@@ -74,9 +74,12 @@ ${window.Standards.knowledgeContext()}
       throw new Error(msg);
     }
     const data = await res.json();
-    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+    const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('\n');
     return text;
   }
+
+  // اسم داخلي موحّد للاستدعاء
+  const callClaude = callGemini;
 
   // استخراج JSON من رد النموذج بأمان
   function parseJSON(text) {

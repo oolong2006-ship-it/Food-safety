@@ -1670,10 +1670,10 @@
         `}
       </div>` : `
       <div class="card section-gap" style="max-width:560px">
-        <div class="card-title">🤖 الذكاء الاصطناعي (Claude)</div>
-        <p class="muted" style="margin-bottom:14px">عند التفعيل يستخدم النظام نموذج <strong>${esc(window.AI.MODEL)}</strong> لتحليل الصور ورصد المخالفات وتقييم البنود وتوليد الإجراءات. يُحفظ المفتاح محليًا على جهازك فقط ولا يُرسل لأي جهة عدا خدمة Claude.</p>
+        <div class="card-title">🤖 الذكاء الاصطناعي (Gemini)</div>
+        <p class="muted" style="margin-bottom:14px">عند التفعيل يستخدم النظام نموذج <strong>${esc(window.AI.MODEL)}</strong> لتحليل الصور ورصد المخالفات وتقييم البنود وتوليد الإجراءات. يُحفظ المفتاح محليًا على جهازك فقط. <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--primary)">احصل على مفتاح مجاني</a></p>
         <div class="form-grid">
-          <div class="field"><label>مفتاح Claude API</label><input id="ai-key" type="password" placeholder="sk-ant-..." value="${esc(window.AI.cfg().apiKey || '')}" /></div>
+          <div class="field"><label>مفتاح Gemini API</label><input id="ai-key" type="password" placeholder="AIza..." value="${esc(window.AI.cfg().apiKey || '')}" /></div>
           <div class="field"><label style="display:flex;gap:8px;align-items:center;font-weight:400">
             <input type="checkbox" id="ai-enabled" ${window.AI.cfg().enabled !== false ? 'checked' : ''}/> تفعيل خدمة الذكاء الاصطناعي
           </label></div>
