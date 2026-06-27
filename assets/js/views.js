@@ -350,7 +350,9 @@
       } });
   };
 
-  Views.delTemp = function (id) { S.remove('tempLogs', id); U.toast('تم الحذف', 'ok'); App.render(); };
+  Views.delTemp = function (id) {
+    U.confirmDialog('حذف هذا السجل الحراري نهائيًا؟', () => { S.remove('tempLogs', id); U.toast('تم الحذف', 'ok'); App.render(); }, 'حذف');
+  };
 
   /* ===================== العاملون والشهادات الصحية ===================== */
   Views.employees = function () {
@@ -919,7 +921,9 @@
       } });
   };
 
-  Views.delCleaning = function (id) { S.remove('cleaning', id); U.toast('تم الحذف', 'ok'); App.render(); };
+  Views.delCleaning = function (id) {
+    U.confirmDialog('حذف مهمة التنظيف هذه نهائيًا؟', () => { S.remove('cleaning', id); U.toast('تم الحذف', 'ok'); App.render(); }, 'حذف');
+  };
 
   Views.newPest = function () {
     U.modal('زيارة مكافحة آفات', `
@@ -940,7 +944,9 @@
       } });
   };
 
-  Views.delPest = function (id) { S.remove('pest', id); U.toast('تم الحذف', 'ok'); App.render(); };
+  Views.delPest = function (id) {
+    U.confirmDialog('حذف سجل مكافحة الآفات هذا نهائيًا؟', () => { S.remove('pest', id); U.toast('تم الحذف', 'ok'); App.render(); }, 'حذف');
+  };
 
   /* ===================== الرصد بالتصوير (ذكاء اصطناعي) ===================== */
   Views._monImg = null;
@@ -964,9 +970,12 @@
     });
   };
 
+  Views._monShowAll = false;
   Views.monitor = function () {
     const db = S.load();
-    const history = (db.monitors || []).slice(0, 8);
+    const allHistory = db.monitors || [];
+    const history = Views._monShowAll ? allHistory : allHistory.slice(0, 8);
+    const hasMore = !Views._monShowAll && allHistory.length > 8;
     const aiOn = window.AI.enabled();
     return `
       <div class="page-head">
@@ -1000,17 +1009,18 @@
           <div id="mon-results">${U.empty('ستظهر المخالفات المرصودة هنا بعد التحليل', '🔎')}</div>
         </div>
       </div>
-      ${history.length ? `<div class="card section-gap">
-        <div class="card-title">🕘 سجل عمليات الرصد</div>
+      ${allHistory.length ? `<div class="card section-gap">
+        <div class="card-title">🕘 سجل عمليات الرصد <span class="spacer"></span><span class="muted" style="font-size:12px">${allHistory.length} عملية</span></div>
         <div class="table-wrap" style="border:none"><table>
           <thead><tr><th>الدليل</th><th>التاريخ</th><th>الملخص</th><th>المخالفات</th><th>المصدر</th></tr></thead>
           <tbody>${history.map(h => `<tr>
             <td>${h.thumb ? `<img src="${h.thumb}" onclick="Views.zoomImg('${h.thumb}')" style="width:54px;height:42px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--line)" alt="دليل"/>` : '<span class="muted">—</span>'}</td>
             <td>${fmtDate(h.date)} <small class="muted">${esc(h.time || '')}</small></td>
-            <td>${esc(h.summary || '—')}</td>
+            <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(h.summary || '—')}</td>
             <td>${U.badge(h.count + ' مخالفة', h.count ? 'red' : 'green')}</td>
             <td>${h.source === 'ai' ? U.badge('ذكاء اصطناعي', 'blue') : U.badge('محلي', 'gray')}</td>
           </tr>`).join('')}</tbody></table></div>
+        ${hasMore ? `<div style="text-align:center;margin-top:12px"><button class="btn-secondary btn-sm" onclick="Views._monShowAll=true;App.render()">عرض جميع السجلات (${allHistory.length})</button></div>` : ''}
       </div>` : ''}`;
   };
 
@@ -1057,10 +1067,23 @@
     analyzeBtn.onclick = async () => {
       const note = U.$('#mon-note').value.trim();
       if (!Views._monImg && !note) return U.toast('اختر صورة أو أضف ملاحظة', 'err');
-      const st = U.$('#mon-state'); st.textContent = '⏳ جارٍ التحليل...';
+      const st = U.$('#mon-state');
       analyzeBtn.disabled = true;
+
+      // مؤشر تقدم متحرك يعكس مراحل التحليل
+      const steps = Views._monImg
+        ? ['📤 إرسال الصورة إلى النموذج...', '🧠 تحليل الذكاء الاصطناعي جارٍ...', '📋 استخراج المخالفات والإجراءات...']
+        : ['🧠 تحليل النص جارٍ...', '📋 استخراج الإجراءات التصحيحية...'];
+      let stepIdx = 0;
+      st.textContent = '⏳ ' + steps[0];
+      const stepTimer = setInterval(() => {
+        stepIdx = (stepIdx + 1) % steps.length;
+        st.textContent = '⏳ ' + steps[stepIdx];
+      }, 2800);
+
       try {
         const r = await window.AI.analyzePhoto(Views._monImg || { mediaType: 'image/jpeg', data: '' }, note);
+        clearInterval(stepTimer);
         st.textContent = '';
         Views._monViolations = r.violations || [];
         const box = U.$('#mon-results');
@@ -1071,26 +1094,30 @@
         S.add('monitors', { id: S.uid('mon'), date: S.todayISO(), time: new Date().toTimeString().slice(0,5), summary: r.summary || '', count: (r.violations||[]).length, source: r.source, thumb: Views._monThumb || '' });
         const mc = S.col('monitors'); if (mc.length > 20) { mc.length = 20; S.save(); }
 
-        let html = `<p class="muted" style="margin-bottom:12px">${esc(r.summary || '')} ${r.source === 'ai' ? U.badge('ذكاء اصطناعي', 'blue') : U.badge('محلي', 'gray')}</p>`;
+        let html = '';
+        if (r.summary) html += `<div class="card" style="margin-bottom:12px;background:#f0fdfa;border-color:#99f6e4"><p style="font-size:13.5px">${esc(r.summary)}</p>${r.source === 'ai' ? `<div style="margin-top:6px">${U.badge('تحليل بالذكاء الاصطناعي', 'blue')}</div>` : `<div style="margin-top:6px">${U.badge('تحليل محلي', 'gray')}</div>`}</div>`;
         if (!Views._monViolations.length) {
-          html += `<div class="empty" style="padding:20px"><span class="ic">✅</span>لم تُرصد مخالفات — المشهد مطابق</div>`;
+          html += `<div class="empty" style="padding:20px"><span class="ic">✅</span>لم تُرصد مخالفات — المشهد مطابق للمتطلبات</div>`;
         } else {
+          html += `<p style="font-size:13px;font-weight:700;margin-bottom:10px;color:#b91c1c">⚠ تم رصد ${Views._monViolations.length} مخالفة</p>`;
           html += Views._monViolations.map((v, i) => `
             <div class="card" style="margin-bottom:10px;border-color:#fecaca;background:#fef2f2">
-              <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
                 <strong style="flex:1">${esc(v.title)}</strong>${U.statusBadge(v.severity || 'متوسطة')}
               </div>
-              <p style="font-size:13px;margin-bottom:4px"><strong>الإجراء التصحيحي:</strong> ${esc(v.corrective || '')}</p>
-              <p style="font-size:13px;margin-bottom:4px"><strong>الإجراء الوقائي:</strong> ${esc(v.preventive || '')}</p>
-              ${v.reference ? `<p class="muted" style="font-size:12px;margin-bottom:8px">المرجع: ${esc(v.reference)}</p>` : ''}
-              <button class="btn-primary btn-sm" onclick="Views.ncFromMonitor(${i})">+ إنشاء حالة عدم مطابقة</button>
+              <div style="display:grid;gap:4px;margin-bottom:8px">
+                <p style="font-size:13px"><strong>الإجراء التصحيحي:</strong> ${esc(v.corrective || '')}</p>
+                <p style="font-size:13px"><strong>الإجراء الوقائي:</strong> ${esc(v.preventive || '')}</p>
+                ${v.reference ? `<p class="muted" style="font-size:12px">المرجع: ${esc(v.reference)}</p>` : ''}
+              </div>
+              <button class="btn-primary btn-sm" onclick="Views.ncFromMonitor(${i})">+ تحويل لحالة عدم مطابقة</button>
             </div>`).join('');
         }
         box.innerHTML = html;
-        // تحديث عدّادات القائمة الجانبية
         App.buildNav();
-        U.toast(Views._monViolations.length ? `تم رصد ${Views._monViolations.length} مخالفة` : 'لا توجد مخالفات', Views._monViolations.length ? 'err' : 'ok');
+        U.toast(Views._monViolations.length ? `تم رصد ${Views._monViolations.length} مخالفة` : 'لا توجد مخالفات ✓', Views._monViolations.length ? 'err' : 'ok');
       } catch (e) {
+        clearInterval(stepTimer);
         st.textContent = '';
         U.$('#mon-results').innerHTML = `<div class="empty"><span class="ic">⚠</span>${esc(e.message)}</div>`;
       }
@@ -1191,10 +1218,16 @@
       const note = noteEl.value.trim(), emp = U.$('#wc-emp').value;
       Views._wcEmp = emp;
       if (!Views._wcImg && !note) return U.toast('اختر صورة أو أضف ملاحظة', 'err');
-      const st = U.$('#wc-state'); st.textContent = '⏳ جارٍ التفتيش...'; analyzeBtn.disabled = true;
+      const st = U.$('#wc-state');
+      analyzeBtn.disabled = true;
+      const wcSteps = Views._wcImg
+        ? ['📤 إرسال صورة العامل...', '🧠 تقييم الالتزام بالذكاء الاصطناعي...', '📋 استخراج نتائج التفتيش...']
+        : ['🧠 تحليل ملاحظات التفتيش...', '📋 إعداد نتيجة التقييم...'];
+      let wcIdx = 0; st.textContent = '⏳ ' + wcSteps[0];
+      const wcTimer = setInterval(() => { wcIdx = (wcIdx + 1) % wcSteps.length; st.textContent = '⏳ ' + wcSteps[wcIdx]; }, 2800);
       try {
         const r = await window.AI.inspectWorker(Views._wcImg || { mediaType: 'image/jpeg', data: '' }, note, emp);
-        st.textContent = ''; Views._wcResult = r;
+        clearInterval(wcTimer); st.textContent = ''; Views._wcResult = r;
         const box = U.$('#wc-results');
         if (r.error) { box.innerHTML = `<div class="empty"><span class="ic">⚠</span>${esc(r.error)}</div>`; analyzeBtn.disabled = false; return; }
         if (r.needsKey) { box.innerHTML = U.empty(r.hint, '🔑'); analyzeBtn.disabled = false; return; }
@@ -1226,7 +1259,7 @@
         U.$('#wc-save').onclick = () => Views.saveWorkerCheck();
         const ncBtn = U.$('#wc-nc'); if (ncBtn) ncBtn.onclick = () => Views.ncFromWorker();
         App.buildNav();
-      } catch (e) { st.textContent = ''; U.$('#wc-results').innerHTML = `<div class="empty"><span class="ic">⚠</span>${esc(e.message)}</div>`; }
+      } catch (e) { clearInterval(wcTimer); st.textContent = ''; U.$('#wc-results').innerHTML = `<div class="empty"><span class="ic">⚠</span>${esc(e.message)}</div>`; }
       analyzeBtn.disabled = false;
     };
   };
@@ -1324,7 +1357,9 @@
   };
 
   Views.rcRemove = function (i) { Views._recipe.splice(i, 1); Views._renderRecipe(); };
-  Views.delRecipe = function (id) { S.remove('recipes', id); U.toast('تم الحذف', 'ok'); App.render(); };
+  Views.delRecipe = function (id) {
+    U.confirmDialog('حذف هذه الوصفة المحفوظة نهائيًا؟', () => { S.remove('recipes', id); U.toast('تم الحذف', 'ok'); App.render(); }, 'حذف');
+  };
 
   Views.bind_nutrition = function () {
     Views._recipe = [];
