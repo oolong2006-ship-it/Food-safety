@@ -27,6 +27,9 @@
   }
   function enabled() {
     if (cloudAI()) return true;
+    // مفتاح مُضبط مسبقًا في SAAS config → مُفعَّل دائمًا بصرف النظر عن إعداد المستخدم
+    const saasKey = window.SAAS && window.SAAS.geminiKey;
+    if (saasKey && saasKey !== 'GEMINI_KEY_PLACEHOLDER') return true;
     return hasKey() && cfg().enabled !== false;
   }
 
