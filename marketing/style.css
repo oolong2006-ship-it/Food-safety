@@ -151,12 +151,37 @@ details p { color: var(--muted); font-size: 15.5px; padding: 0 0 16px; }
 .footer-inner { display: grid; gap: 10px; place-items: center; }
 .footer .muted { color: #64748b; font-size: 13px; }
 
+/* قطاعات المنشآت */
+.sector-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.sector-card { background: #fff; border: 1.5px solid var(--line); border-radius: var(--radius); padding: 22px 18px; text-align: center; transition: .18s; }
+.sector-card:hover { border-color: var(--teal); box-shadow: var(--shadow-sm); transform: translateY(-3px); }
+.sector-ic { font-size: 2.4rem; margin-bottom: 10px; }
+.sector-card h4 { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+.sector-card p { color: var(--muted); font-size: 13px; }
+
+/* شريط CTA وسط الصفحة */
+.mid-cta { background: linear-gradient(120deg, #0b3b37, var(--teal)); color: #fff; padding: 44px 0; text-align: center; }
+.mid-cta h3 { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+.mid-cta p { color: #d4f1ec; margin-bottom: 20px; }
+
+/* شبكة ما الجديد */
+.whatsnew-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.wn-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 26px 22px; }
+.wn-pill { display: inline-block; font-size: 11px; font-weight: 700; color: var(--teal-d); background: #e6f4f3; border-radius: 999px; padding: 3px 10px; margin-bottom: 12px; }
+.wn-card h4 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+.wn-card p { color: var(--muted); font-size: 14.5px; }
+.wn-card ul { list-style: none; margin-top: 12px; display: grid; gap: 6px; }
+.wn-card ul li { position: relative; padding-inline-start: 22px; color: var(--muted); font-size: 14px; }
+.wn-card ul li::before { content: "✓"; position: absolute; inset-inline-start: 0; color: var(--teal); font-weight: 800; }
+
 /* استجابة */
 @media (max-width: 960px) {
   .hero-inner, .split { grid-template-columns: 1fr; }
   .hero-shot { order: -1; }
   .hero-shot .browser { transform: none; }
   .feature-grid, .steps, .pricing, .quotes, .stats-grid { grid-template-columns: 1fr 1fr; }
+  .sector-grid { grid-template-columns: repeat(3, 1fr); }
+  .whatsnew-grid { grid-template-columns: 1fr 1fr; }
   .hero h1 { font-size: 36px; }
 }
 @media (max-width: 640px) {
@@ -166,6 +191,7 @@ details p { color: var(--muted); font-size: 15.5px; padding: 0 0 16px; }
   .nav-toggle { display: block; }
   .nav-cta .btn-primary { display: none; }
   .feature-grid, .steps, .pricing, .quotes, .stats-grid { grid-template-columns: 1fr; }
+  .sector-grid, .whatsnew-grid { grid-template-columns: 1fr; }
   .section { padding: 54px 0; }
   .section-title { font-size: 26px; }
   .hero h1 { font-size: 30px; }
