@@ -26,7 +26,7 @@
     return !!(window.Cloud && window.Cloud.active && window.Cloud.active() && window.Cloud.feature('ai') && window.Cloud.aiProxy);
   }
   function enabled() {
-    if (window.Cloud && window.Cloud.active && window.Cloud.active()) return cloudAI();
+    if (cloudAI()) return true;
     return hasKey() && cfg().enabled !== false;
   }
 
@@ -52,14 +52,18 @@ ${window.Standards.knowledgeContext()}
   }
 
   async function callGemini(content, { maxTokens = 1500 } = {}) {
-    // الوضع السحابي: المرور عبر بوابة الخادم
+    // الوضع السحابي: جرّب البوابة أولاً، وارجع للمفتاح المحلي عند الفشل
     if (cloudAI()) {
-      return await window.Cloud.aiProxy({
-        system: systemPrompt(),
-        messages: [{ role: 'user', content }],
-        max_tokens: maxTokens,
-        model: MODEL,
-      });
+      try {
+        return await window.Cloud.aiProxy({
+          system: systemPrompt(),
+          messages: [{ role: 'user', content }],
+          max_tokens: maxTokens,
+          model: MODEL,
+        });
+      } catch (_) {
+        if (!resolvedKey()) throw new Error('خدمة الذكاء الاصطناعي غير متاحة — أضف مفتاح Gemini في الإعدادات');
+      }
     }
     const key = resolvedKey();
     const res = await fetch(GEMINI_URL + '?key=' + key, {

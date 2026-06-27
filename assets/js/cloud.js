@@ -196,11 +196,13 @@
       body: { system, messages, max_tokens, model },
     });
     if (error) {
-      let msg = 'تعذّر الاتصال بخدمة الذكاء الاصطناعي (تأكد من نشر دالة claude-proxy وضبط ANTHROPIC_API_KEY)';
+      let msg = 'cloud-proxy-unavailable';
       try { const ctx = await error.context.json(); if (ctx && ctx.error) msg = ctx.error; } catch (_) {}
       throw new Error(msg);
     }
     if (data && data.error) throw new Error(data.error);
+    // دعم تنسيق Gemini (content.parts) وتنسيق النص المباشر
+    if (data && data.content) return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
     return (data && data.text) || '';
   }
 
