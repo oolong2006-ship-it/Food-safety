@@ -18,7 +18,10 @@
     localStorage.setItem(CFG_KEY, JSON.stringify(c));
     return c;
   }
-  function hasKey() { return !!(cfg().apiKey && cfg().apiKey.trim()); }
+  function resolvedKey() {
+    return (cfg().apiKey && cfg().apiKey.trim()) || (window.SAAS && window.SAAS.geminiKey) || '';
+  }
+  function hasKey() { return !!resolvedKey(); }
   function cloudAI() {
     return !!(window.Cloud && window.Cloud.active && window.Cloud.active() && window.Cloud.feature('ai') && window.Cloud.aiProxy);
   }
@@ -58,7 +61,7 @@ ${window.Standards.knowledgeContext()}
         model: MODEL,
       });
     }
-    const key = cfg().apiKey;
+    const key = resolvedKey();
     const res = await fetch(GEMINI_URL + '?key=' + key, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
