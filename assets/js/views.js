@@ -1660,10 +1660,10 @@
       </div>
       ${(window.Cloud && window.Cloud.active && window.Cloud.active()) ? `
       <div class="card section-gap" style="max-width:560px">
-        <div class="card-title">🤖 الذكاء الاصطناعي (Claude)</div>
+        <div class="card-title">🤖 الذكاء الاصطناعي (Gemini)</div>
         ${window.Cloud.feature('ai') ? `
-          <p class="muted" style="margin-bottom:10px">يعمل الذكاء الاصطناعي (<strong>${esc(window.AI.MODEL)}</strong>) عبر <strong>بوابة آمنة على الخادم</strong> — مفتاح Anthropic محفوظ في الخادم ولا يظهر في المتصفح. لا حاجة لإدخال أي مفتاح هنا.</p>
-          <div class="form-actions"><button class="btn-secondary" id="ai-test">اختبار الاتصال بالبوابة</button><span id="ai-test-state" class="muted" style="align-self:center"></span></div>
+          <p class="muted" style="margin-bottom:10px">يعمل الذكاء الاصطناعي (<strong>${esc(window.AI.MODEL)}</strong>) — مفتاح Gemini مُضبط مسبقًا ولا حاجة لإدخال أي مفتاح هنا.</p>
+          <div class="form-actions"><button class="btn-secondary" id="ai-test">اختبار الاتصال</button><span id="ai-test-state" class="muted" style="align-self:center"></span></div>
         ` : `
           <p class="muted">ميزة الذكاء الاصطناعي غير متضمَّنة في خطتك الحالية (<strong>${esc(window.Cloud.planLimits().label)}</strong>). يرجى الترقية لتفعيلها.</p>
           <div class="form-actions"><button class="btn-primary" onclick="App.go('billing')">عرض الخطط والترقية</button></div>

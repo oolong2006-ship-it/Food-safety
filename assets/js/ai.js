@@ -66,9 +66,15 @@ ${window.Standards.knowledgeContext()}
       }
     }
     const key = resolvedKey();
-    const res = await fetch(GEMINI_URL + '?key=' + key, {
+    if (!key) throw new Error('لا يوجد مفتاح Gemini API — أضفه من الإعدادات');
+    // مفاتيح AQ./ya29. هي OAuth access tokens تُرسل كـ Bearer
+    const isBearer = key.startsWith('AQ.') || key.startsWith('ya29.');
+    const fetchUrl = isBearer ? GEMINI_URL : GEMINI_URL + '?key=' + key;
+    const fetchHeaders = { 'content-type': 'application/json' };
+    if (isBearer) fetchHeaders['Authorization'] = 'Bearer ' + key;
+    const res = await fetch(fetchUrl, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: fetchHeaders,
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt() }] },
         contents: [{ parts: buildGeminiParts(content) }],
