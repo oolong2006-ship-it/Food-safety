@@ -454,9 +454,12 @@
     const branches = [
       { id: uid('br'), name: 'الفرع الرئيسي', city: 'الرياض', type: 'مطعم', manager: '', phone: '', createdAt: todayISO() },
     ];
+    const auditLog = [
+      { id: uid('aud'), ts: new Date().toISOString(), user: 'النظام', role: 'نظام', action: 'تهيئة', entity: 'meta', entityId: 'seed', summary: 'تهيئة بيانات النظام الأولية', branchId: '' },
+    ];
     return {
       meta: { facilityName: 'مطعم وكافيه الذواقة', license: 'CR-1010xxxxxx', city: 'الرياض', created: todayISO() },
-      employees: emps, tempLogs, inspections, ncs, suppliers, pest, cleaning, haccp, batches, branches,
+      employees: emps, tempLogs, inspections, ncs, suppliers, pest, cleaning, haccp, batches, branches, auditLog,
     };
   }
 
@@ -525,6 +528,22 @@
     if (i > -1) { arr.splice(i, 1); if (_cloud && _hooks.onMutate) _hooks.onMutate(name, 'delete', { id }); else save(); }
   }
   function get(name, id) { return col(name).find(x => x.id === id); }
+
+  // ---------- سجل التدقيق Audit Log ----------
+  function addAuditEntry(action, entity, entityId, summary, extra) {
+    try {
+      const user = (window.App && window.App.user) ? window.App.user.name : '—';
+      const role = (window.App && window.App.user) ? (window.App.user.role || '') : '';
+      const entry = {
+        id: uid('aud'), ts: new Date().toISOString(), user, role, action, entity, entityId: entityId || '',
+        summary: summary || '', branchId: activeBranch() || '', extra: extra || null,
+      };
+      col('auditLog').unshift(entry);
+      // احتفظ بآخر 500 إدخال فقط لتجنب تضخم التخزين
+      if (db.auditLog.length > 500) db.auditLog.length = 500;
+      save();
+    } catch (e) { /* لا تكسر العملية الأصلية */ }
+  }
 
   // ---------- مؤشرات محسوبة ----------
   function inspectionScore(insp) {
@@ -596,5 +615,6 @@
     CHECKLIST_TEMPLATES, buildInspection,
     hydrate, setHooks, isCloud,
     activeBranch, setActiveBranch, branchName,
+    addAuditEntry,
   };
 })();

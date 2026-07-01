@@ -20,6 +20,7 @@
     { key: 'nutrition', icon: '🥗', label: 'حاسبة السعرات والحساسية', title: 'حاسبة السعرات والمكوّنات والحساسية' },
     { key: 'standards', icon: '📚', label: 'المواصفات والمعايير', title: 'المواصفات والمعايير المرجعية' },
     { key: 'reports', icon: '📈', label: 'التقارير والجاهزية', title: 'التقارير وجاهزية التفتيش' },
+    { key: 'auditlog', icon: '🔏', label: 'سجل التدقيق', title: 'سجل التدقيق' },
     { key: 'team', icon: '👤', label: 'الفريق والأدوار', title: 'إدارة الفريق والأدوار' },
     { key: 'billing', icon: '💳', label: 'الاشتراك', title: 'الاشتراك والخطة' },
     { key: 'settings', icon: '⚙️', label: 'الإعدادات', title: 'الإعدادات' },

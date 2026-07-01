@@ -26,13 +26,22 @@
     const cards = [...db.employees].sort((a, b) => S.daysFromToday(a.healthCardExpiry) - S.daysFromToday(b.healthCardExpiry)).slice(0, 5);
     // مهام تنظيف متأخرة
     const overdue = db.cleaning.filter(c => S.daysFromToday(c.nextDue) < 0);
+    // معدل إغلاق CAPA
+    const totalNCs = db.ncs.length;
+    const closedNCs = db.ncs.filter(n => n.status === 'مغلقة').length;
+    const capaRate = totalNCs ? Math.round(closedNCs / totalNCs * 100) : 100;
+    const lastInspDate = m.lastInsp ? fmtDate(m.lastInsp) : '—';
 
     return `
-      <div class="grid cols-4">
+      <div class="grid cols-3" style="margin-bottom:14px">
         ${kpi(readyCls, '🛡️', 'جاهزية التفتيش', m.readiness + '%', 'مؤشر مرجّح للامتثال العام')}
-        ${kpi(m.compliance >= 85 ? 'good' : m.compliance >= 60 ? 'warn' : 'bad', '✅', 'نسبة الامتثال GMP', m.compliance + '%', 'آخر تدقيق منفّذ')}
-        ${kpi(m.openNCs ? 'bad' : 'good', '⚠️', 'حالات عدم مطابقة مفتوحة', m.openNCs, m.criticalNCs + ' حالة حرجة')}
+        ${kpi(m.openNCs ? 'bad' : 'good', '⚠️', 'مخالفات مفتوحة', m.openNCs, m.criticalNCs + ' حالة حرجة')}
+        ${kpi(capaRate >= 80 ? 'good' : capaRate >= 50 ? 'warn' : 'bad', '✅', 'معدل إغلاق CAPA', capaRate + '%', closedNCs + ' من ' + totalNCs + ' حالة')}
+      </div>
+      <div class="grid cols-3" style="margin-bottom:18px">
+        ${kpi(m.compliance >= 85 ? 'good' : m.compliance >= 60 ? 'warn' : 'bad', '📋', 'امتثال GMP', m.compliance + '%', 'آخر تدقيق: ' + lastInspDate)}
         ${kpi(m.tempBreaches ? 'warn' : 'good', '🌡️', 'تجاوزات حرارية', m.tempBreaches, 'تحتاج إجراء تصحيحي')}
+        ${kpi(m.expiredCards ? 'bad' : 'good', '🪪', 'شهادات منتهية', m.expiredCards, 'من إجمالي ' + db.employees.length + ' عامل')}
       </div>
 
       <div class="grid cols-3 section-gap">
@@ -92,7 +101,35 @@
               ${U.badge('متأخرة', 'red')}
             </div>`).join('')}</div>` : U.empty('كل مهام التنظيف محدّثة ✨', '🧹')}
         </div>
-      </div>`;
+      </div>
+
+      ${(() => {
+        const branches = db.branches || [];
+        if (branches.length < 2) return '';
+        const rows = branches.map(b => {
+          const bNCs = db.ncs.filter(n => n.branchId === b.id);
+          const bOpen = bNCs.filter(n => n.status !== 'مغلقة').length;
+          const bCrit = bNCs.filter(n => n.severity === 'حرجة' && n.status !== 'مغلقة').length;
+          const bInsp = [...db.inspections].filter(i => i.branchId === b.id).sort((a, c) => c.date.localeCompare(a.date))[0];
+          const bScore = bInsp ? S.inspectionScore(bInsp) : null;
+          const bEmps = db.employees.filter(e => e.branchId === b.id);
+          const bExpired = bEmps.filter(e => S.daysFromToday(e.healthCardExpiry) < 0).length;
+          return `<tr>
+            <td><strong>${esc(b.name)}</strong>${b.city ? `<br><small class="muted">${esc(b.city)}</small>` : ''}</td>
+            <td>${bScore != null ? `<span style="font-weight:700;color:${bScore>=85?'#16a34a':bScore>=60?'#d97706':'#dc2626'}">${bScore}%</span>` : U.badge('لا يوجد', 'gray')}</td>
+            <td>${U.badge(bOpen, bOpen ? 'red' : 'green')}</td>
+            <td>${bCrit ? U.badge(bCrit + ' حرجة', 'red') : U.badge('لا يوجد', 'green')}</td>
+            <td>${bExpired ? U.badge(bExpired + ' منتهية', 'amber') : U.badge('كل سارية', 'green')}</td>
+            <td><button class="btn-secondary btn-sm" onclick="Views.setActiveBranch('${b.id}');App.go('nc')">إجراءات</button></td>
+          </tr>`;
+        }).join('');
+        return `<div class="card section-gap">
+          <div class="card-title">🏪 مقارنة الفروع — لمحة سريعة</div>
+          <div class="table-wrap" style="border:none"><table>
+            <thead><tr><th>الفرع</th><th>GMP%</th><th>مخالفات مفتوحة</th><th>حرجة</th><th>شهادات</th><th></th></tr></thead>
+            <tbody>${rows}</tbody></table></div>
+        </div>`;
+      })()}`;
   };
 
   /* ===================== التفتيش الذاتي / GMP ===================== */
@@ -476,47 +513,103 @@
   };
 
   Views.editNC = function (id) {
-    const n = id ? S.get('ncs', id) : { title: '', severity: 'متوسطة', source: 'تدقيق داخلي', status: 'مفتوحة', date: S.todayISO(), owner: App.user.name, dueDate: S.shift(7), action: '', preventiveAction: '', rootCause: '', branchId: S.activeBranch() || '' };
+    const n = id ? S.get('ncs', id) : {
+      title: '', severity: 'متوسطة', source: 'تدقيق داخلي', status: 'مفتوحة',
+      date: S.todayISO(), owner: App.user.name, dueDate: S.shift(7),
+      action: '', preventiveAction: '', rootCause: '', branchId: S.activeBranch() || '',
+      verificationEvidence: '', verifiedBy: '', verificationDate: '',
+    };
     const sel = (val, opts) => opts.map(o => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('');
     const db = S.load(); const hasBranches = (db.branches || []).length > 0;
+    const WORKFLOW = ['مفتوحة', 'مُسنَدة', 'قيد المعالجة', 'بانتظار التحقق', 'مغلقة', 'مُعاد فتحها'];
     U.modal(id ? 'معالجة حالة عدم المطابقة' : 'حالة عدم مطابقة جديدة', `
       ${n.photo ? `<div style="text-align:center;margin-bottom:14px"><img src="${n.photo}" onclick="Views.zoomImg('${n.photo}')" style="max-height:200px;max-width:100%;border-radius:10px;cursor:pointer;border:1px solid var(--line)" alt="الدليل المصوّر"/><div class="muted" style="font-size:12px;margin-top:4px">📷 دليل مصوّر مرفق — اضغط للتكبير</div></div>` : ''}
+      <div class="notice-bar" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#78350f">
+        🤖 اقتراحات الذكاء الاصطناعي مساعدة فقط — راجع كل اقتراح واعتمده أو عدّله أو ارفضه قبل الحفظ.
+      </div>
       <div class="form-grid two">
-        <div class="field field-full"><label>وصف المخالفة</label><input name="title" value="${esc(n.title)}" /></div>
+        <div class="field field-full"><label>وصف المخالفة *</label><input name="title" value="${esc(n.title)}" placeholder="صف المخالفة بوضوح" /></div>
         <div class="field"><label>الخطورة</label><select name="severity">${sel(n.severity, ['حرجة', 'عالية', 'متوسطة', 'منخفضة'])}</select></div>
-        <div class="field"><label>المصدر</label><select name="source">${sel(n.source, ['تدقيق داخلي', 'تدقيق GMP', 'مراقبة الحرارة', 'تفتيش رسمي', 'تحليل بالذكاء الاصطناعي', 'شكوى عميل', 'أخرى'])}</select></div>
+        <div class="field"><label>المصدر</label><select name="source">${sel(n.source, ['تدقيق داخلي', 'تدقيق GMP', 'مراقبة الحرارة', 'تفتيش رسمي', 'مساعد ذكاء اصطناعي', 'شكوى عميل', 'أخرى'])}</select></div>
         <div class="field"><label>المسؤول عن المعالجة</label><input name="owner" value="${esc(n.owner)}" /></div>
         <div class="field"><label>تاريخ الاستحقاق</label><input name="dueDate" type="date" value="${esc(n.dueDate)}" /></div>
-        <div class="field"><label>الحالة</label><select name="status">${sel(n.status, ['مفتوحة', 'قيد المعالجة', 'مغلقة'])}</select></div>
+        <div class="field"><label>حالة CAPA</label><select name="status" id="nc-status">${sel(n.status, WORKFLOW)}</select></div>
         <div class="field"><label>التاريخ</label><input name="date" type="date" value="${esc(n.date)}" /></div>
         ${hasBranches ? `<div class="field"><label>الفرع</label><select name="branchId">${branchOpts(n.branchId)}</select></div>` : ''}
-        <div class="field field-full"><label>السبب الجذري</label><textarea name="rootCause">${esc(n.rootCause)}</textarea></div>
-        <div class="field field-full"><label>الإجراء التصحيحي (الفوري)</label><textarea name="action">${esc(n.action)}</textarea></div>
-        <div class="field field-full"><label>الإجراء الوقائي (لمنع التكرار)</label><textarea name="preventiveAction">${esc(n.preventiveAction || '')}</textarea></div>
+        <div class="field field-full"><label>السبب الجذري Root Cause</label><textarea name="rootCause" placeholder="ما هو السبب الحقيقي وراء هذه المخالفة؟">${esc(n.rootCause)}</textarea></div>
+        <div class="field field-full"><label>الإجراء التصحيحي (الفوري)</label><textarea name="action" placeholder="ما الذي تم فعله فوراً لمعالجة المخالفة؟">${esc(n.action)}</textarea></div>
+        <div class="field field-full"><label>الإجراء الوقائي (لمنع التكرار)</label><textarea name="preventiveAction" placeholder="ما الذي سيُطبَّق لمنع تكرار هذه المخالفة؟">${esc(n.preventiveAction || '')}</textarea></div>
+        <div class="field field-full" id="verify-section">
+          <label>دليل الإغلاق / التحقق من التطبيق</label>
+          <textarea name="verificationEvidence" placeholder="صِف الدليل الذي يثبت تنفيذ الإجراء التصحيحي (صورة، قياس، ملاحظة ميدانية...)">${esc(n.verificationEvidence || '')}</textarea>
+        </div>
+        <div class="field"><label>اعتمد التحقق (المسؤول)</label><input name="verifiedBy" value="${esc(n.verifiedBy || '')}" placeholder="اسم مسؤول الجودة المعتمِد" /></div>
+        <div class="field"><label>تاريخ التحقق</label><input name="verificationDate" type="date" value="${esc(n.verificationDate || '')}" /></div>
       </div>
       <div class="form-actions" style="margin-top:14px">
         <button class="btn-primary" id="save">حفظ</button>
-        <button class="btn-secondary" id="ai-capa">🤖 اقترح الإجراءات بالذكاء الاصطناعي</button>
-        <span id="ai-state" class="muted" style="align-self:center"></span>
-      </div>`,
+        <button class="btn-secondary" id="ai-capa">🤖 اقتراحات الذكاء الاصطناعي</button>
+        <span id="ai-state" class="muted" style="align-self:center;font-size:13px"></span>
+      </div>
+      <div id="ai-suggestions" class="hidden" style="margin-top:14px;border:1.5px solid #cfe6e2;border-radius:10px;padding:14px"></div>`,
       { wide: true, onOpen: (root) => {
         U.$('#ai-capa').onclick = async () => {
           const title = root.querySelector('[name=title]').value.trim();
           if (!title) return U.toast('أدخل وصف المخالفة أولًا', 'err');
           const st = U.$('#ai-state'); st.textContent = '⏳ جارٍ التحليل...';
+          U.$('#ai-capa').disabled = true;
           try {
             const r = await window.AI.generateCapa(title);
-            if (r.severity) root.querySelector('[name=severity]').value = ['حرجة','عالية','متوسطة','منخفضة'].includes(r.severity) ? r.severity : root.querySelector('[name=severity]').value;
-            if (r.rootCause) root.querySelector('[name=rootCause]').value = r.rootCause;
-            root.querySelector('[name=action]').value = r.corrective + (r.reference ? '\n[المرجع: ' + r.reference + ']' : '');
-            root.querySelector('[name=preventiveAction]').value = r.preventive;
-            st.textContent = r.source === 'ai' ? '✓ تم التوليد بالذكاء الاصطناعي' : '✓ اقتراح محلي (فعّل الذكاء الاصطناعي لنتائج أدق)';
+            const box = U.$('#ai-suggestions');
+            box.classList.remove('hidden');
+            box.innerHTML = `
+              <div style="font-size:13px;font-weight:700;color:#0f766e;margin-bottom:10px">💡 اقتراحات الذكاء الاصطناعي — راجع وعدّل قبل الاعتماد</div>
+              <div class="form-grid two" style="gap:10px">
+                <div><strong style="font-size:12px">الخطورة المقترحة:</strong><div style="margin-top:4px">${esc(r.severity||'—')}</div></div>
+                <div><strong style="font-size:12px">درجة الثقة:</strong><div style="margin-top:4px">${r.confidence ? Math.round(r.confidence*100)+'%' : '—'}</div></div>
+                <div style="grid-column:1/-1"><strong style="font-size:12px">السبب الجذري المقترح:</strong><div style="margin-top:4px;color:#374151">${esc(r.rootCause||'—')}</div></div>
+                <div style="grid-column:1/-1"><strong style="font-size:12px">الإجراء التصحيحي المقترح:</strong><div style="margin-top:4px;color:#374151">${esc(r.corrective||'—')}</div></div>
+                <div style="grid-column:1/-1"><strong style="font-size:12px">الإجراء الوقائي المقترح:</strong><div style="margin-top:4px;color:#374151">${esc(r.preventive||'—')}</div></div>
+                ${r.reference ? `<div style="grid-column:1/-1"><strong style="font-size:12px">المرجع:</strong><div style="margin-top:4px;color:#6b7280">${esc(r.reference)}</div></div>` : ''}
+              </div>
+              <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+                <button class="btn-primary btn-sm" id="ai-accept">✓ اعتماد الاقتراح</button>
+                <button class="btn-secondary btn-sm" id="ai-edit">✏ تعديل يدوي</button>
+                <button class="btn-secondary btn-sm" id="ai-reject">✕ رفض الاقتراح</button>
+              </div>`;
+            U.$('#ai-accept').onclick = () => {
+              if (r.severity && ['حرجة','عالية','متوسطة','منخفضة'].includes(r.severity)) root.querySelector('[name=severity]').value = r.severity;
+              if (r.rootCause) root.querySelector('[name=rootCause]').value = r.rootCause;
+              if (r.corrective) root.querySelector('[name=action]').value = r.corrective + (r.reference ? '\n[المرجع: ' + r.reference + ']' : '');
+              if (r.preventive) root.querySelector('[name=preventiveAction]').value = r.preventive;
+              box.innerHTML = '<div style="color:#065f46;font-size:13px">✓ تم اعتماد الاقتراح وملء الحقول — راجع وعدّل حسب الحاجة.</div>';
+              st.textContent = '';
+            };
+            U.$('#ai-edit').onclick = () => {
+              if (r.rootCause) root.querySelector('[name=rootCause]').value = r.rootCause;
+              if (r.corrective) root.querySelector('[name=action]').value = r.corrective;
+              if (r.preventive) root.querySelector('[name=preventiveAction]').value = r.preventive;
+              box.innerHTML = '<div style="color:#1e40af;font-size:13px">✏ تم ملء الحقول — يمكنك تعديل النصوص مباشرة.</div>';
+              st.textContent = '';
+            };
+            U.$('#ai-reject').onclick = () => { box.classList.add('hidden'); st.textContent = 'تم رفض الاقتراح.'; };
+            st.textContent = r.source === 'ai' ? '✓ تم التحليل بالذكاء الاصطناعي' : '✓ اقتراح من قاعدة المعرفة';
           } catch (e) { st.textContent = '⚠ ' + e.message; }
+          U.$('#ai-capa').disabled = false;
         };
         U.$('#save').onclick = () => {
           const f = U.readForm(root);
           if (!f.title) return U.toast('أدخل وصف المخالفة', 'err');
-          if (id) S.update('ncs', id, f); else S.add('ncs', f);
+          if (f.status === 'مغلقة' && !f.verificationEvidence) {
+            if (!confirm('تحتاج إلى دليل إغلاق/تحقق لإغلاق الحالة. هل تريد المتابعة بدون دليل؟')) return;
+          }
+          if (id) {
+            S.update('ncs', id, f);
+            S.addAuditEntry('تحديث', 'ncs', id, 'تحديث حالة CAPA: ' + f.title + ' → ' + f.status);
+          } else {
+            S.add('ncs', f);
+            S.addAuditEntry('إنشاء', 'ncs', f.id, 'حالة CAPA جديدة: ' + f.title);
+          }
           U.closeModal(); U.toast('تم الحفظ', 'ok'); App.render();
         };
       } });
@@ -1011,6 +1104,9 @@
       ${aiOn ? '' : `<div class="card" style="margin-bottom:16px;background:#fffbeb;border-color:#fde68a">
         <strong>⚠ خدمة الذكاء الاصطناعي غير مفعّلة</strong>
         <p class="muted" style="margin-top:6px">الرصد الآلي للمخالفات من الصور يتطلب تفعيل الخدمة من <a href="#" onclick="App.go('settings');return false">الإعدادات</a>. يمكنك حاليًا التقاط صورة وإضافة ملاحظة نصية ليقترح النظام الإجراءات المناسبة من قاعدة المواصفات.</p></div>`}
+      <div class="card" style="margin-bottom:16px;background:#f0fdf4;border-color:#86efac;font-size:13px;color:#166534;padding:12px 16px">
+        🔒 <strong>ملاحظة الخصوصية:</strong> الصور تُستخدم فقط لتحليل المخالفات الميدانية وتُخزَّن محليًا. تجنّب التقاط وجوه العاملين أو بياناتهم الشخصية. اقتراحات الذكاء الاصطناعي مساعدة فقط — راجعها وأقرّها قبل اتخاذ أي إجراء.
+      </div>
       <div class="grid cols-2">
         <div class="card">
           <div class="card-title">📷 التقاط / رفع صورة</div>
@@ -1183,6 +1279,9 @@
       ${aiOn ? '' : `<div class="card" style="margin-bottom:16px;background:#fffbeb;border-color:#fde68a">
         <strong>⚠ خدمة الذكاء الاصطناعي غير مفعّلة</strong>
         <p class="muted" style="margin-top:6px">التفتيش البصري للعامل يتطلب تفعيل الخدمة من <a href="#" onclick="App.go('settings');return false">الإعدادات</a>.</p></div>`}
+      <div class="card" style="margin-bottom:16px;background:#f0fdf4;border-color:#86efac;font-size:13px;color:#166534;padding:12px 16px">
+        🔒 <strong>ملاحظة الخصوصية:</strong> صور العاملين تُستخدم فقط لتقييم الالتزام بمعايير النظافة وتُخزَّن محليًا. يُنصح بتجنب التقاط الوجوه غير الضرورية. احرص على الحصول على موافقة العامل وفق سياسة المنشأة. التقييم مساعد وليس حكمًا نهائيًا.
+      </div>
       <div class="grid cols-2">
         <div class="card">
           <div class="card-title">📷 صورة العامل</div>
@@ -1531,11 +1630,39 @@
       ['لا توجد دفعات منتهية الصلاحية في المخزون', m.expiredBatches === 0],
     ];
 
+    const totalNCs = db.ncs.length;
+    const closedNCs = db.ncs.filter(n => n.status === 'مغلقة').length;
+    const capaRate = totalNCs ? Math.round(closedNCs / totalNCs * 100) : 100;
+    const lastInspDate = m.lastInsp ? fmtDate(m.lastInsp) : 'لا يوجد';
+
     return `
       <div class="page-head">
         <div><h2>التقارير وجاهزية التفتيش</h2><p>ملخص شامل لحالة المنشأة وجاهزيتها لزيارة الجهات الرقابية</p></div>
         <div class="spacer"></div>
         <button class="btn-secondary" onclick="window.print()">🖨️ طباعة التقرير</button>
+      </div>
+
+      <div class="card" style="margin-bottom:18px;background:#fffbeb;border:1.5px solid #fcd34d;font-size:13px;color:#78350f;padding:12px 18px">
+        ⚠️ <strong>إخلاء مسؤولية:</strong> هذا التقرير أداة داخلية لقياس جاهزية المنشأة ولا يمثّل شهادة اعتماد رسمية من أي جهة رقابية. اقتراحات الذكاء الاصطناعي مساعدة فقط وتستوجب مراجعة بشرية متخصصة. الامتثال النهائي مسؤولية المنشأة ومسؤول سلامة الغذاء المرخّص.
+      </div>
+
+      <div class="grid cols-4" style="margin-bottom:18px">
+        <div class="card kpi ${m.readiness >= 85 ? 'good' : m.readiness >= 60 ? 'warn' : 'bad'}">
+          <div class="kpi-ic">🛡️</div><div class="kpi-label">مؤشر الجاهزية</div>
+          <div class="kpi-value">${m.readiness}%</div><div class="kpi-sub">مؤشر مرجّح للامتثال</div>
+        </div>
+        <div class="card kpi ${capaRate >= 80 ? 'good' : capaRate >= 50 ? 'warn' : 'bad'}">
+          <div class="kpi-ic">✅</div><div class="kpi-label">معدل إغلاق CAPA</div>
+          <div class="kpi-value">${capaRate}%</div><div class="kpi-sub">${closedNCs} من ${totalNCs} حالة</div>
+        </div>
+        <div class="card kpi ${m.criticalNCs ? 'bad' : 'good'}">
+          <div class="kpi-ic">🚨</div><div class="kpi-label">مخالفات حرجة مفتوحة</div>
+          <div class="kpi-value">${m.criticalNCs}</div><div class="kpi-sub">تحتاج إجراء عاجل</div>
+        </div>
+        <div class="card kpi ${m.lastInsp ? 'good' : 'warn'}">
+          <div class="kpi-ic">📋</div><div class="kpi-label">آخر تدقيق داخلي</div>
+          <div class="kpi-value" style="font-size:18px">${lastInspDate}</div><div class="kpi-sub">${m.compliance}% امتثال GMP</div>
+        </div>
       </div>
 
       <div class="grid cols-3">
@@ -1569,7 +1696,8 @@
           <div><strong>${db.suppliers.length}</strong><span>الموردون</span></div>
           <div><strong>${fmtDate(S.todayISO())}</strong><span>تاريخ التقرير</span></div>
         </div>
-      </div>`;
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:12px;text-align:center">هذا التقرير أداة داخلية للجاهزية ولا يعادل شهادة اعتماد رسمية — © تفتيش Food Safety OS</p>`;
   };
 
   /* ===================== الفريق والأدوار ===================== */
@@ -1900,6 +2028,71 @@
     S.setActiveBranch(id);
     U.toast('تم تحديد الفرع الحالي', 'ok');
     App.render(); App.renderBranchChip && App.renderBranchChip();
+  };
+
+  /* ===================== سجل التدقيق ===================== */
+  Views._auditPage = 0;
+  Views._auditFilter = '';
+  const AUDIT_PAGE_SIZE = 50;
+
+  Views.auditlog = function () {
+    const db = S.load();
+    const all = db.auditLog || [];
+    const q = Views._auditFilter.trim().toLowerCase();
+    const filtered = q
+      ? all.filter(e => [e.user, e.action, e.entity, e.summary].some(f => f && f.toLowerCase().includes(q)))
+      : all;
+    const page = Views._auditPage;
+    const start = page * AUDIT_PAGE_SIZE;
+    const slice = filtered.slice(start, start + AUDIT_PAGE_SIZE);
+    const hasNext = start + AUDIT_PAGE_SIZE < filtered.length;
+    const hasPrev = page > 0;
+
+    const actionColor = { 'إضافة': 'green', 'تعديل': 'blue', 'حذف': 'red', 'تهيئة': 'gray' };
+    const rows = slice.map(e => {
+      const dt = e.ts ? new Date(e.ts) : null;
+      const dateStr = dt ? dt.toLocaleDateString('ar', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+      const timeStr = dt ? dt.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) : '';
+      return `<tr>
+        <td><span class="muted" style="font-size:12px">${esc(dateStr)}</span><br><small class="muted">${esc(timeStr)}</small></td>
+        <td><strong>${esc(e.user || '—')}</strong>${e.role ? `<br><small class="muted">${esc(e.role)}</small>` : ''}</td>
+        <td>${U.badge(e.action || '—', actionColor[e.action] || 'gray')}</td>
+        <td>${esc(e.entity || '—')}</td>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.summary || '')}">${esc(e.summary || '—')}</td>
+      </tr>`;
+    }).join('');
+
+    return `
+      <div class="page-head">
+        <div><h2>سجل التدقيق</h2><p>سجل تلقائي لجميع الإجراءات على بيانات النظام — غير قابل للتعديل من الواجهة</p></div>
+      </div>
+      <div class="card" style="margin-bottom:18px;background:#eff6ff;border-color:#bfdbfe;font-size:13px;color:#1e40af;padding:12px 18px">
+        🔏 سجل التدقيق يُسجَّل تلقائيًا ولا يمكن حذفه أو تعديله من الواجهة. يُظهر من أجرى أي تعديل ومتى. الحد الأقصى للحفظ 500 إدخال (الأقدم يُحذف تلقائيًا).
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;gap:10px;align-items:center">
+          <input id="audit-search" type="search" placeholder="ابحث بالمستخدم أو الإجراء أو الوصف…" value="${esc(Views._auditFilter)}" style="flex:1;padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px" />
+          <span class="muted" style="white-space:nowrap;font-size:13px">${filtered.length} سجل</span>
+        </div>
+      </div>
+      ${slice.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>الكيان</th><th>الوصف</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:14px">
+          ${hasPrev ? `<button class="btn-secondary btn-sm" onclick="Views._auditPage--;App.render()">→ الصفحة السابقة</button>` : ''}
+          <span class="muted" style="align-self:center;font-size:13px">صفحة ${page + 1} من ${Math.ceil(filtered.length / AUDIT_PAGE_SIZE) || 1}</span>
+          ${hasNext ? `<button class="btn-secondary btn-sm" onclick="Views._auditPage++;App.render()">← الصفحة التالية</button>` : ''}
+        </div>` : U.empty('لا توجد سجلات تدقيق بعد', '🔏')}`;
+  };
+
+  Views.bind_auditlog = function () {
+    const inp = U.$('#audit-search');
+    if (!inp) return;
+    inp.oninput = () => {
+      Views._auditFilter = inp.value;
+      Views._auditPage = 0;
+      App.render();
+    };
   };
 
   window.Views = Views;
