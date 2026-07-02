@@ -99,6 +99,10 @@ img { max-width: 100%; display: block; }
 
 /* المميزات */
 .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.feature-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.feature-grid.cols-4 .feature { padding: 24px 18px; }
+.feature-grid.cols-4 .feature h4 { font-size: 16.5px; }
+.feature-grid.cols-4 .feature p { font-size: 14px; }
 .feature { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 26px 22px; transition: .18s; }
 .feature:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: #cfe6e2; }
 .f-ic { width: 52px; height: 52px; border-radius: 14px; background: var(--soft); display: grid; place-content: center; font-size: 26px; margin-bottom: 14px; }
@@ -219,6 +223,7 @@ details p { color: var(--muted); font-size: 15.5px; padding: 0 0 16px; }
 
 /* استجابة */
 @media (max-width: 960px) {
+  .feature-grid.cols-4 { grid-template-columns: 1fr 1fr; }
   .hero-inner, .split { grid-template-columns: 1fr; }
   .hero-shot { order: -1; }
   .hero-shot .browser { transform: none; }
@@ -229,6 +234,7 @@ details p { color: var(--muted); font-size: 15.5px; padding: 0 0 16px; }
   .hero h1 { font-size: 36px; }
 }
 @media (max-width: 640px) {
+  .feature-grid.cols-4 { grid-template-columns: 1fr; }
   .nav-links { position: absolute; top: 68px; inset-inline: 0; background: #fff; flex-direction: column; gap: 0; padding: 8px 0; border-bottom: 1px solid var(--line); box-shadow: var(--shadow); display: none; }
   .nav-links.open { display: flex; }
   .nav-links a { padding: 12px 22px; }
