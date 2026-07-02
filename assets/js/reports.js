@@ -1133,6 +1133,9 @@
       </div>` : `<div class="card">${U.empty('لا توجد تقارير محفوظة في الأرشيف بعد','🗂️')}</div>`}`;
   };
 
+  // أزرار الطباعة تستدعي printReport من onclick — يجب أن تكون عامة
+  window.printReport = printReport;
+
   // inject CSS for tab bar
   if (!document.getElementById('rc-style')) {
     const style = document.createElement('style');
