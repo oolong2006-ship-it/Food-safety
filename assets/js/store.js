@@ -565,6 +565,7 @@
     const lastInsp = [...db.inspections].sort((a, b) => b.date.localeCompare(a.date))[0];
     const compliance = lastInsp ? inspectionScore(lastInsp) : 0;
     const overdueCleaning = db.cleaning.filter(c => daysFromToday(c.nextDue) < 0);
+    const overdueCapas = openNCs.filter(n => n.dueDate && daysFromToday(n.dueDate) < 0);
     const batches = db.batches || [];
     const activeBatches = batches.filter(b => b.status !== 'مستهلك' && b.status !== 'مسحوب');
     const expiredBatches = activeBatches.filter(b => daysFromToday(b.expiry) < 0);
@@ -584,7 +585,7 @@
 
     return {
       compliance, readiness,
-      openNCs: openNCs.length, criticalNCs: criticalNCs.length,
+      openNCs: openNCs.length, criticalNCs: criticalNCs.length, overdueCapas: overdueCapas.length,
       expiringCards: expiringCards.length, expiredCards: expiredCards.length,
       tempBreaches: tempBreaches.length, overdueCleaning: overdueCleaning.length,
       totalEmployees: db.employees.length, totalSuppliers: db.suppliers.length,

@@ -35,13 +35,13 @@
     return `
       <div class="grid cols-3" style="margin-bottom:14px">
         ${kpi(readyCls, '🛡️', 'جاهزية التفتيش', m.readiness + '%', 'مؤشر مرجّح للامتثال العام')}
-        ${kpi(m.openNCs ? 'bad' : 'good', '⚠️', 'مخالفات مفتوحة', m.openNCs, m.criticalNCs + ' حالة حرجة')}
-        ${kpi(capaRate >= 80 ? 'good' : capaRate >= 50 ? 'warn' : 'bad', '✅', 'معدل إغلاق CAPA', capaRate + '%', closedNCs + ' من ' + totalNCs + ' حالة')}
+        ${kpi(m.criticalNCs ? 'bad' : m.openNCs ? 'warn' : 'good', '⚠️', 'مخالفات مفتوحة', m.openNCs, m.criticalNCs + ' حرجة · ' + m.overdueCapas + ' متأخرة')}
+        ${kpi(capaRate >= 80 ? 'good' : capaRate >= 50 ? 'warn' : 'bad', '✅', 'معدل إغلاق CAPA', capaRate + '%', closedNCs + ' مغلقة من ' + totalNCs)}
       </div>
       <div class="grid cols-3" style="margin-bottom:18px">
         ${kpi(m.compliance >= 85 ? 'good' : m.compliance >= 60 ? 'warn' : 'bad', '📋', 'امتثال GMP', m.compliance + '%', 'آخر تدقيق: ' + lastInspDate)}
         ${kpi(m.tempBreaches ? 'warn' : 'good', '🌡️', 'تجاوزات حرارية', m.tempBreaches, 'تحتاج إجراء تصحيحي')}
-        ${kpi(m.expiredCards ? 'bad' : 'good', '🪪', 'شهادات منتهية', m.expiredCards, 'من إجمالي ' + db.employees.length + ' عامل')}
+        ${kpi(m.expiredCards ? 'bad' : m.expiringCards ? 'warn' : 'good', '🪪', 'شهادات صحية', m.expiredCards + ' منتهية', m.expiringCards + ' تنتهي قريباً')}
       </div>
 
       <div class="grid cols-3 section-gap">
@@ -106,27 +106,35 @@
       ${(() => {
         const branches = db.branches || [];
         if (branches.length < 2) return '';
-        const rows = branches.map(b => {
+        const branchData = branches.map(b => {
           const bNCs = db.ncs.filter(n => n.branchId === b.id);
           const bOpen = bNCs.filter(n => n.status !== 'مغلقة').length;
           const bCrit = bNCs.filter(n => n.severity === 'حرجة' && n.status !== 'مغلقة').length;
+          const bOverdue = bNCs.filter(n => n.status !== 'مغلقة' && n.dueDate && S.daysFromToday(n.dueDate) < 0).length;
           const bInsp = [...db.inspections].filter(i => i.branchId === b.id).sort((a, c) => c.date.localeCompare(a.date))[0];
           const bScore = bInsp ? S.inspectionScore(bInsp) : null;
           const bEmps = db.employees.filter(e => e.branchId === b.id);
           const bExpired = bEmps.filter(e => S.daysFromToday(e.healthCardExpiry) < 0).length;
-          return `<tr>
-            <td><strong>${esc(b.name)}</strong>${b.city ? `<br><small class="muted">${esc(b.city)}</small>` : ''}</td>
-            <td>${bScore != null ? `<span style="font-weight:700;color:${bScore>=85?'#16a34a':bScore>=60?'#d97706':'#dc2626'}">${bScore}%</span>` : U.badge('لا يوجد', 'gray')}</td>
-            <td>${U.badge(bOpen, bOpen ? 'red' : 'green')}</td>
-            <td>${bCrit ? U.badge(bCrit + ' حرجة', 'red') : U.badge('لا يوجد', 'green')}</td>
-            <td>${bExpired ? U.badge(bExpired + ' منتهية', 'amber') : U.badge('كل سارية', 'green')}</td>
-            <td><button class="btn-secondary btn-sm" onclick="Views.setActiveBranch('${b.id}');App.go('nc')">إجراءات</button></td>
-          </tr>`;
-        }).join('');
+          // درجة المخاطر: كلما زادت المشاكل زادت الخطورة
+          const riskScore = (bCrit * 15) + (bOverdue * 10) + (bOpen * 5) + (bExpired * 12) + (bScore != null ? Math.max(0, 85 - bScore) * 0.5 : 20);
+          const riskLevel = riskScore >= 30 ? 'red' : riskScore >= 10 ? 'amber' : 'green';
+          const riskLabel = riskScore >= 30 ? 'عالية' : riskScore >= 10 ? 'متوسطة' : 'منخفضة';
+          return { b, bOpen, bCrit, bOverdue, bScore, bExpired, riskScore, riskLevel, riskLabel };
+        }).sort((a, x) => x.riskScore - a.riskScore);
+
+        const rows = branchData.map(({ b, bOpen, bCrit, bOverdue, bScore, bExpired, riskLevel, riskLabel }) => `<tr>
+          <td><strong>${esc(b.name)}</strong>${b.city ? `<br><small class="muted">${esc(b.city)}</small>` : ''}</td>
+          <td>${U.badge(riskLabel, riskLevel)}</td>
+          <td>${bScore != null ? `<span style="font-weight:700;color:${bScore>=85?'#16a34a':bScore>=60?'#d97706':'#dc2626'}">${bScore}%</span>` : U.badge('لا يوجد', 'gray')}</td>
+          <td>${bCrit ? U.badge(bCrit + ' حرجة', 'red') : (bOpen ? U.badge(bOpen + ' مفتوحة', 'amber') : U.badge('لا يوجد', 'green'))}</td>
+          <td>${bOverdue ? U.badge(bOverdue + ' متأخرة', 'red') : U.badge('كل في الموعد', 'green')}</td>
+          <td>${bExpired ? U.badge(bExpired + ' منتهية', 'amber') : U.badge('سارية', 'green')}</td>
+          <td><button class="btn-secondary btn-sm" onclick="Views.setActiveBranch('${b.id}');App.go('nc')">إجراءات</button></td>
+        </tr>`).join('');
         return `<div class="card section-gap">
-          <div class="card-title">🏪 مقارنة الفروع — لمحة سريعة</div>
+          <div class="card-title">🏪 تصنيف الفروع حسب المخاطر <span class="muted" style="font-size:12px;font-weight:400">— مُرتَّب من الأعلى خطورة للأدنى</span></div>
           <div class="table-wrap" style="border:none"><table>
-            <thead><tr><th>الفرع</th><th>GMP%</th><th>مخالفات مفتوحة</th><th>حرجة</th><th>شهادات</th><th></th></tr></thead>
+            <thead><tr><th>الفرع</th><th>مستوى المخاطر</th><th>GMP%</th><th>المخالفات</th><th>CAPA المتأخرة</th><th>الشهادات</th><th></th></tr></thead>
             <tbody>${rows}</tbody></table></div>
         </div>`;
       })()}`;
@@ -480,18 +488,21 @@
     const bf = Views._branchFilter;
     const all = [...db.ncs].sort((a, b) => b.date.localeCompare(a.date));
     const list = bf ? all.filter(n => n.branchId === bf) : all;
-    const rows = list.map(n => `<tr>
-      <td><strong>${n.photo ? '📷 ' : ''}${esc(n.title)}</strong><br><small class="muted">${esc(n.source)}</small></td>
-      <td>${branchCell(n.branchId)}</td>
-      <td>${U.statusBadge(n.severity)}</td>
-      <td>${esc(n.owner)}</td>
-      <td>${fmtDate(n.dueDate)}</td>
-      <td>${U.statusBadge(n.status)}</td>
-      <td class="t-actions">
-        <button class="btn-secondary btn-sm" onclick="Views.editNC('${n.id}')">معالجة</button>
-        <button class="btn-danger btn-sm" onclick="Views.delNC('${n.id}')">حذف</button>
-      </td>
-    </tr>`).join('');
+    const rows = list.map(n => {
+      const isOverdue = n.status !== 'مغلقة' && n.dueDate && S.daysFromToday(n.dueDate) < 0;
+      return `<tr style="${isOverdue ? 'background:#fef2f2' : ''}">
+        <td><strong>${n.photo ? '📷 ' : ''}${esc(n.title)}</strong><br><small class="muted">${esc(n.source)}</small></td>
+        <td>${branchCell(n.branchId)}</td>
+        <td>${U.statusBadge(n.severity)}</td>
+        <td>${esc(n.owner)}</td>
+        <td>${fmtDate(n.dueDate)}${isOverdue ? ' <span style="color:#dc2626;font-size:11px;font-weight:700">⏰ متأخرة</span>' : ''}</td>
+        <td>${U.statusBadge(n.status)}</td>
+        <td class="t-actions">
+          <button class="btn-secondary btn-sm" onclick="Views.editNC('${n.id}')">معالجة</button>
+          <button class="btn-danger btn-sm" onclick="Views.delNC('${n.id}')">حذف</button>
+        </td>
+      </tr>`;
+    }).join('');
     const open = list.filter(n => n.status !== 'مغلقة').length;
     const crit = list.filter(n => n.severity === 'حرجة' && n.status !== 'مغلقة').length;
 
@@ -501,11 +512,17 @@
         <div class="spacer"></div>
         <button class="btn-primary" onclick="Views.editNC()">+ حالة جديدة</button>
       </div>
-      <div class="grid cols-3" style="margin-bottom:18px">
-        <div class="card kpi ${open ? 'warn' : 'good'}"><div class="kpi-ic">📂</div><div class="kpi-label">مفتوحة / قيد المعالجة</div><div class="kpi-value">${open}</div></div>
-        <div class="card kpi ${crit ? 'bad' : 'good'}"><div class="kpi-ic">🚨</div><div class="kpi-label">حرجة مفتوحة</div><div class="kpi-value">${crit}</div></div>
-        <div class="card kpi good"><div class="kpi-ic">✅</div><div class="kpi-label">مغلقة</div><div class="kpi-value">${list.filter(n => n.status === 'مغلقة').length}</div></div>
-      </div>
+      ${(() => {
+        const overdueList = list.filter(n => n.status !== 'مغلقة' && n.dueDate && S.daysFromToday(n.dueDate) < 0);
+        const closed = list.filter(n => n.status === 'مغلقة').length;
+        const rate = list.length ? Math.round(closed / list.length * 100) : 100;
+        return `<div class="grid cols-4" style="margin-bottom:18px">
+          <div class="card kpi ${open ? 'warn' : 'good'}"><div class="kpi-ic">📂</div><div class="kpi-label">مفتوحة / قيد المعالجة</div><div class="kpi-value">${open}</div></div>
+          <div class="card kpi ${crit ? 'bad' : 'good'}"><div class="kpi-ic">🚨</div><div class="kpi-label">حرجة مفتوحة</div><div class="kpi-value">${crit}</div></div>
+          <div class="card kpi ${overdueList.length ? 'bad' : 'good'}"><div class="kpi-ic">⏰</div><div class="kpi-label">CAPA متأخرة عن الموعد</div><div class="kpi-value">${overdueList.length}</div><div class="kpi-sub">تجاوزت تاريخ الاستحقاق</div></div>
+          <div class="card kpi ${rate >= 80 ? 'good' : rate >= 50 ? 'warn' : 'bad'}"><div class="kpi-ic">✅</div><div class="kpi-label">معدل الإغلاق</div><div class="kpi-value">${rate}%</div><div class="kpi-sub">${closed} مغلقة</div></div>
+        </div>`;
+      })()}
       ${branchFilterBar()}
       <div class="table-wrap"><table>
         <thead><tr><th>الوصف / المصدر</th><th>الفرع</th><th>الخطورة</th><th>المسؤول</th><th>الاستحقاق</th><th>الحالة</th><th></th></tr></thead>
@@ -1697,7 +1714,7 @@
           <div><strong>${fmtDate(S.todayISO())}</strong><span>تاريخ التقرير</span></div>
         </div>
       </div>
-      <p class="muted" style="font-size:12px;margin-top:12px;text-align:center">هذا التقرير أداة داخلية للجاهزية ولا يعادل شهادة اعتماد رسمية — © تفتيش Food Safety OS</p>`;
+      <p class="muted" style="font-size:12px;margin-top:12px;text-align:center">هذا التقرير أداة داخلية للجاهزية ولا يعادل شهادة اعتماد رسمية — © تفتيش | Food Safety Readiness OS</p>`;
   };
 
   /* ===================== الفريق والأدوار ===================== */
