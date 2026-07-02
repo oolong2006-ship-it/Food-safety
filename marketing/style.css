@@ -288,3 +288,25 @@ details p { color: var(--muted); font-size: 15.5px; padding: 0 0 16px; }
   .rp-journey { padding: 26px 16px; }
   .rp-journey h3, .rp-questions-wrap h3 { font-size: 20px; }
 }
+
+/* ===== شريط مؤشرات متابعة الفروع ===== */
+.kpi-strip {
+  background: linear-gradient(135deg, #f0fdfa 0%, #f3f8f7 100%);
+  border: 1px solid #cfe6e2; border-radius: var(--radius); padding: 30px 28px;
+}
+.kpi-strip-head { text-align: center; margin-bottom: 22px; }
+.kpi-strip-head h4 { font-size: 20px; font-weight: 900; color: var(--teal-d); margin-bottom: 4px; }
+.kpi-strip-head p { color: var(--muted); font-size: 14px; }
+.kpi-strip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.kpi-item {
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 16px; display: flex; align-items: center; gap: 12px; transition: .18s;
+}
+.kpi-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: #cfe6e2; }
+.kpi-item-ic {
+  width: 40px; height: 40px; min-width: 40px; border-radius: 10px; background: var(--soft);
+  display: grid; place-content: center; font-size: 19px;
+}
+.kpi-item p { font-size: 14px; font-weight: 700; line-height: 1.5; }
+@media (max-width: 900px) { .kpi-strip-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .kpi-strip-grid { grid-template-columns: 1fr; } .kpi-strip { padding: 22px 16px; } }
